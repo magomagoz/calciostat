@@ -146,40 +146,69 @@ if st.session_state['view'] == 'campionato':
 elif st.session_state['view'] == 'aggiungi':
     st.subheader(f"➕ Nuovo Profilo - {st.session_state['camp_scelto']}")
     
-    # --- POSIZIONE 1: Recupero la lista corretta in base al girone scelto ---
+    # 1. Recupero la lista corretta
     squadre_disponibili = GIRONI_SQUADRE[st.session_state['camp_scelto']]
     
-    with st.form("add_player", clear_on_submit=True):
+    if st.button("⬅️ Annulla e torna all'Elenco"):
+        st.session_state['view'] = 'dashboard'
+        st.rerun()
+
+    # Usiamo il form per raggruppare i dati
+    with st.form("add_player_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
-        
-        # --- POSIZIONE 2: Utilizzo la variabile per popolare il selectbox ---
         squadra = col1.selectbox("Squadra", squadre_disponibili)
-        ruolo = col2.selectbox("Ruolo", ["P", "D", "C", "A"])
+        ruolo = col2.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"])
         
         cognome = st.text_input("Cognome")
         nome = st.text_input("Nome")
-        nascita = st.date_input("Data di Nascita", min_value=date(1900,1,1), value=date(2009,1,1))
+        nascita = st.date_input("Data di Nascita", min_value=date(1900,1,1), value=date(2025,1,1))
         
-        col_c, col_d, col_e = st.columns(3)
-        pres = col_c.number_input("Presenze", 0)
-        minuti = col_d.number_input("Minuti", 0)
-        gol = col_e.number_input("Gol segnati", 0)
+        c_p, c_m, c_g = st.columns(3)
+        pres = c_p.number_input("Presenze", min_value=0, step=1)
+        minuti = c_m.number_input("Minutaggio totale", min_value=0, step=1)
+        gol = c_g.number_input("Gol segnati", step=1)
         
-        fatica = st.slider("Livello Fatica (%)", 0, 100, 0)
-        note = st.text_area("Note Tecniche / Osservazioni")
+        c_gi, c_ro = st.columns(2)
+        gialli = c_gi.number_input("Cartellini Gialli", min_value=0, step=1)
+        rossi = c_ro.number_input("Cartellini Rossi", min_value=0, step=1)
         
-        if st.form_submit_button("💾 CALCOLA RATING E SALVA"):
-            rating_finale = calcola_rating_empirico(pres, gol, minuti, nascita, ruolo)
-            
-            nuovo_record = pd.DataFrame([[
-                squadra, cognome, nome, ruolo, nascita, pres, 
-                minuti, gol, fatica, 0, 0, rating_finale, note
-            ]], columns=st.session_state['players_db'].columns)
-            
-            st.session_state['players_db'] = pd.concat([st.session_state['players_db'], nuovo_record], ignore_index=True)
-            st.success(f"Salvataggio riuscito! Rating calcolato: {rating_finale}")
-            st.session_state['view'] = 'dashboard'
-            st.rerun()
+        note = st.text_area("Note Tecniche")
+        
+        submit = st.form_submit_button("💾 CALCOLA RATING E SALVA NEL DB")
+        
+        if submit:
+            if cognome == "" or nome == "":
+                st.error("Per favore, inserisci almeno Cognome e Nome.")
+            else:
+                # 2. CALCOLO IL RATING
+                rating_f = calcola_rating_empirico(pres, gol, minuti, nascita, ruolo, gialli, rossi)
+                
+                # 3. CREO IL NUOVO RECORD
+                nuovo_giocatore = {
+                    "Squadra": squadra,
+                    "Cognome": cognome,
+                    "Nome": nome,
+                    "Ruolo": ruolo,
+                    "Data di nascita": nascita,
+                    "Presenze": pres,
+                    "Minutaggio": minuti,
+                    "Gol": gol,
+                    "Fatica": 0, # Valore di default
+                    "Gialli": gialli,
+                    "Rossi": rossi,
+                    "Rating": rating_f,
+                    "Note": note
+                }
+                
+                # 4. AGGIORNO IL DATABASE IN SESSION STATE
+                # Usiamo loc[len(...)] che è più stabile di concat per singoli inserimenti
+                st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo_giocatore
+                
+                # 5. CAMBIO VISTA E FORZO IL REFRESH
+                st.session_state['view'] = 'dashboard'
+                st.success(f"Giocatore {cognome} salvato con successo!")
+                st.rerun() # Questo comando è fondamentale per tornare alla home
+
 
 elif st.session_state['view'] == 'stats':
     st.subheader("📊 Analisi Performance")
