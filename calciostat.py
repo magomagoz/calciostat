@@ -84,7 +84,7 @@ if not st.session_state['logged_in']:
     st.stop()
 
 # --- NAVBAR ---
-st.title("⚽ Scouting Intelligence System")
+#st.title("⚽ Scouting Intelligence System")
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
