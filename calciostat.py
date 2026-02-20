@@ -29,7 +29,7 @@ if 'players_db' not in st.session_state:
 if 'view' not in st.session_state:
     st.session_state['view'] = 'dashboard'
 if 'camp_scelto' not in st.session_state:
-    st.session_state['camp_scelto'] = "U17 Elite - C"
+    st.session_state['camp_scelto'] = list(GIRONI_SQUADRE.keys())[0]
 
 # --- LOGIN ---
 if 'logged_in' not in st.session_state:
