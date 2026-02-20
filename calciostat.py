@@ -66,10 +66,12 @@ def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo):
         
     return round(min(rating, 10.0), 1)
 
-# --- NAVBAR ---
+# --- NAVBAR AGGIORNATA ---
 st.title("⚽ Scouting Intelligence System")
 st.write(f"Campionato Attuale: **{st.session_state['camp_scelto']}**")
-c1, c2, c3 = st.columns(3)
+
+# Layout a 4 colonne per i pulsanti
+c1, c2, c3, c4 = st.columns(4)
 with c1:
     if st.button("🏆 Campionato", use_container_width=True): 
         st.session_state['view'] = 'campionato'; st.rerun()
@@ -77,10 +79,35 @@ with c2:
     if st.button("➕ Aggiungi", use_container_width=True): 
         st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
+    if st.button("📋 Elenco DB", use_container_width=True): 
+        st.session_state['view'] = 'dashboard'; st.rerun()
+with c4:
     if st.button("📊 Statistiche", use_container_width=True): 
         st.session_state['view'] = 'stats'; st.rerun()
 
 st.divider()
+
+# --- LOGICA DELLA PAGINA ELENCO (DASHBOARD) ---
+if st.session_state['view'] == 'dashboard':
+    st.subheader("📋 Elenco Completo Giocatori nel Database")
+    
+    if not st.session_state['players_db'].empty:
+        # Visualizzazione tabella con possibilità di ordinamento cliccando sulle colonne
+        st.dataframe(
+            st.session_state['players_db'].sort_values(by="Rating", ascending=False), 
+            use_container_width=True,
+            hide_index=True
+        )
+        
+        # Conteggio rapido
+        tot_giocatori = len(st.session_state['players_db'])
+        st.write(f"Totale profili analizzati: **{tot_giocatori}**")
+        
+        # Bottone per scaricare i dati
+        csv = st.session_state['players_db'].to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Esporta Elenco in CSV", csv, "elenco_scouting.csv", "text/csv")
+    else:
+        st.info("L'elenco è vuoto. Inizia ad aggiungere giocatori per popolare il database.")
 
 # --- LOGICA PAGINE ---
 
