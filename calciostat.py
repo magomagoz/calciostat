@@ -1,53 +1,32 @@
 import streamlit as st
-import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+import pandas as pd
 
-st.set_page_config(page_title="Scout U17 Roma", page_icon="⚽")
+st.title("🕵️ Debugger Gazzetta U17")
 
-st.title("⚽ Database Under 17 - Lazio")
+url = st.text_input("Inserisci l'URL esatto:")
 
-# --- NUOVA LOGICA DI SCRAPING ---
-@st.cache_data(ttl=3600)
-def get_data_gazzetta(url):
+if st.button("Analizza Pagina"):
     headers = {
-        'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
     }
-    try:
-        response = requests.get(url, headers=headers)
+    
+    with st.spinner("Sto cercando di leggere il sito..."):
+        res = requests.get(url, headers=headers)
         
-        # Se il sito restituisce 404, avvisiamo l'utente in modo chiaro
-        if response.status_code == 404:
-            st.warning("⚠️ URL non trovato (404). Verifica che il link sia corretto direttamente sul sito della Gazzetta.")
-            return None
-            
-        response.raise_for_status()
-        
-        # Molte pagine della Gazzetta non usano tabelle HTML standard <table> 
-        # ma strutture <div>. Se pd.read_html fallisce, usiamo BeautifulSoup.
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Proviamo a cercare tabelle
-        tabelle = pd.read_html(response.text)
-        if tabelle:
-            return tabelle[0]
+        if res.status_code != 200:
+            st.error(f"Il sito ha risposto con errore {res.status_code}")
         else:
-            st.info("Nessuna tabella standard trovata. Il sito potrebbe usare un formato diverso.")
-            return None
-
-    except Exception as e:
-        st.error(f"Errore tecnico: {e}")
-        return None
-
-# --- UI ---
-# Suggerimento: prova a copiare l'URL esatto navigando sul sito dalla barra del browser
-url_input = st.text_input("Incolla l'URL della classifica dal sito Gazzetta Regionale:", 
-                         placeholder="https://www.gazzettaregionale.it/...")
-
-if st.button("🔄 Aggiorna Dati"):
-    st.cache_data.clear()
-
-if url_input:
-    df = get_data_gazzetta(url_input)
-    if df is not None:
-        st.dataframe(df, use_container_width=True)
+            st.success("Connessione riuscita!")
+            
+            # TEST 1: Vediamo se ci sono tabelle standard
+            tabelle = pd.read_html(res.text)
+            if len(tabelle) > 0:
+                st.write(f"Trovate {len(tabelle)} tabelle!")
+                st.dataframe(tabelle[0])
+            else:
+                st.warning("Nessuna tabella <table> trovata nel codice HTML.")
+                
+                # TEST 2: Stampiamo un pezzetto di codice per capire cosa vede l'AI
+                st.code(res.text[:1000], language="html")
