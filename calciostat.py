@@ -1,39 +1,45 @@
 import streamlit as st
 import pandas as pd
-import io
+import requests
 
-st.set_page_config(page_title="Scout U17 Roma - Manuel Mode", layout="wide")
-st.title("⚽ Scout U17: Trasformatore Tabelle")
+st.title("⚽ Scout Real Tuscolano - Tuttocampo")
 
-st.markdown("""
-### 📝 Istruzioni per iPad:
-1. Apri **Safari** sulla pagina della Gazzetta Regionale.
-2. Seleziona con il dito tutta la tabella (nomi squadre e punti).
-3. Torna qui e **incolla** nel box sotto.
-""")
+# URL della scheda squadra su Tuttocampo
+url_tuscolano = "https://www.tuttocampo.it/Lazio/AllieviProvincialiU17/GironeBProvincialiRoma/Squadra/AccademiaRTuscolanoC/1145427/Scheda"
 
-# Box di testo gigante per incollare i dati
-raw_data = st.text_area("Incolla qui i dati della tabella:", height=300, placeholder="Pos Squadra G V N P...")
+@st.cache_data(ttl=3600)
+def get_tuttocampo_data(url):
+    # Headers molto importanti per non essere bloccati da Tuttocampo
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        'Accept-Language': 'it-IT,it;q=0.9',
+        'Referer': 'https://www.tuttocampo.it/'
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        # Cerchiamo le tabelle (Classifica, Risultati, Rosa)
+        tabelle = pd.read_html(response.text)
+        return tabelle
+    except Exception as e:
+        return f"Errore: {e}"
 
-if st.button("🚀 Elabora e Pulisci Dati"):
-    if raw_data:
-        try:
-            # Usiamo io.StringIO per far leggere a pandas il testo come se fosse un file
-            # sep=None con engine='python' capisce da solo se sono tabulazioni o spazi
-            df = pd.read_csv(io.StringIO(raw_data), sep='\t', header=None)
+if st.button("🔄 Scarica Dati Accademia Real Tuscolano"):
+    risultati = get_tuttocampo_data(url_tuscolano)
+    
+    if isinstance(risultati, list):
+        st.success("Dati scaricati!")
+        
+        # Su Tuttocampo ci sono molte tabelle nella scheda squadra:
+        # Tabelle tipiche: 0=Rosa, 1=Classifica, 2=Ultimi Risultati
+        for i, tab in enumerate(risultati):
+            st.write(f"Tabella {i}")
+            st.dataframe(tab, use_container_width=True)
             
-            if len(df.columns) < 2: # Se il tab non ha funzionato, proviamo con gli spazi
-                df = pd.read_csv(io.StringIO(raw_data), sep=r'\s{2,}', engine='python', header=None)
-
-            st.success("Dati elaborati correttamente!")
-            st.dataframe(df, use_container_width=True)
-
-            # Preparazione download
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Scarica Tabella Pulita (CSV)", csv, "classifica_scout.csv", "text/csv")
-            
-        except Exception as e:
-            st.error(f"Errore durante l'elaborazione: {e}")
-            st.info("Prova a selezionare la tabella in modo diverso o a includere l'intestazione.")
+            # Bottone per scaricare la singola tabella
+            csv = tab.to_csv(index=False).encode('utf-8')
+            st.download_button(f"📥 Scarica Tabella {i}", csv, f"tuscolano_tab_{i}.csv", "text/csv")
     else:
-        st.warning("Il box è vuoto! Incolla qualcosa prima.")
+        st.error(risultati)
