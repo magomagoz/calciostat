@@ -2,60 +2,64 @@ import streamlit as st
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+import re
 
 st.set_page_config(page_title="Scout U17 Roma", layout="wide")
-st.title("⚽ Database Under 17 - Lazio 2024/25")
+st.title("⚽ Database Under 17 - Lazio 2026")
 
-# Configurazione dei link corretti per la stagione attuale
-GIRONI = {
-    "Elite - Girone A": "https://www.gazzettaregionale.it/risultati-classifiche/2024-2025/under-17-elite-lazio/girone-a",
-    "Elite - Girone B": "https://www.gazzettaregionale.it/risultati-classifiche/2024-2025/under-17-elite-lazio/girone-b",
-    "Elite - Girone C": "https://www.gazzettaregionale.it/risultati-classifiche/2024-2025/under-17-elite-lazio/girone-c"
-}
+# L'unica certezza è la Home dei risultati
+URL_START = "https://www.gazzettaregionale.it/risultati-classifiche"
 
-scelta = st.selectbox("Seleziona il Campionato:", list(GIRONI.keys()))
-url_target = GIRONI[scelta]
-
-@st.cache_data(ttl=3600)
-def fetch_campionato(url):
-    # Headers necessari per "ingannare" il server e farsi riconoscere come iPad
+@st.cache_data(ttl=600)
+def find_and_scrape(base_url, target_keywords):
     headers = {
         'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Referer': 'https://www.gazzettaregionale.it/'
     }
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        
-        # Estrazione tabelle tramite Pandas
-        tabelle = pd.read_html(response.text)
-        if not tabelle:
-            return None
-            
-        # La classifica è solitamente la tabella con più righe
-        df = max(tabelle, key=len)
-        return df
-    except Exception as e:
-        return f"Errore: {str(e)}"
-
-if st.button("🔄 Scarica Classifica"):
-    st.cache_data.clear()
-    with st.spinner("Recupero dati in corso..."):
-        risultato = fetch_campionato(url_target)
-        
-        if isinstance(risultato, pd.DataFrame):
-            st.session_state['classifica'] = risultato
-            st.success("Dati caricati correttamente!")
-        else:
-            st.error(risultato)
-
-# Visualizzazione dei risultati
-if 'classifica' in st.session_state:
-    df = st.session_state['classifica']
-    st.subheader(f"Classifica {scelta}")
-    st.dataframe(df, use_container_width=True)
     
-    # Pulsante di download per Excel
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Scarica per Excel", csv, f"{scelta}.csv", "text/csv")
+    try:
+        # 1. Carichiamo la pagina principale per trovare l'URL vero
+        response = requests.get(base_url, headers=headers, timeout=15)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Cerchiamo tutti i link che contengono le nostre parole chiave
+        links = soup.find_all('a', href=True)
+        found_url = None
+        
+        for link in links:
+            href = link['href']
+            # Cerchiamo un link che contenga "under-17" e "girone-c"
+            if all(k in href.lower() for k in target_keywords):
+                found_url = href if href.startswith('http') else f"https://www.gazzettaregionale.it{href}"
+                break
+        
+        if not found_url:
+            return "❌ Non riesco a trovare il link automatico. Il sito potrebbe essere protetto o cambiato."
+
+        st.info(f"🔗 Link trovato: {found_url}")
+        
+        # 2. Proviamo a leggere la tabella dal link trovato
+        res_final = requests.get(found_url, headers=headers)
+        tabelle = pd.read_html(res_final.text)
+        
+        if tabelle:
+            return max(tabelle, key=len)
+        return "⚠️ Pagina trovata ma nessuna tabella dati rilevata."
+
+    except Exception as e:
+        return f"💥 Errore: {str(e)}"
+
+# --- UI ---
+keywords = st.text_input("Parole chiave ricerca (es: under 17 elite girone c)", "under-17-elite girone-c")
+
+if st.button("🔍 Avvia Ricerca e Scarica"):
+    st.cache_data.clear()
+    word_list = keywords.lower().split()
+    risultato = find_and_scrape(URL_START, word_list)
+    
+    if isinstance(risultato, pd.DataFrame):
+        st.success("Dati estratti!")
+        st.dataframe(risultato, use_container_width=True)
+        st.download_button("📥 Scarica CSV", risultato.to_csv(index=False).encode('utf-8'), "scout.csv")
+    else:
+        st.error(risultato)
