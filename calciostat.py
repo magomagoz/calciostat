@@ -9,7 +9,7 @@ except ImportError:
     st.error("Per favore aggiungi 'plotly' al file requirements.txt su GitHub!")
 
 # --- CONFIGURAZIONE ---
-st.image("banner.png", layout="wide")
+st.image("banner.png", use_column_width=True, caption="Scouting Management")
 #st.set_page_config(page_title="Scouting Management Pro", layout="wide")
 
 # Liste Squadre Popolabili
