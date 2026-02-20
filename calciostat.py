@@ -224,21 +224,21 @@ elif st.session_state['view'] == 'stats':
     else:
         st.info("Aggiungi giocatori per generare i grafici.")
 
-else: # DASHBOARD
-    st.subheader("📋 Database Scouting Attivo")
-    if not st.session_state['players_db'].empty:
-        st.dataframe(st.session_state['players_db'], use_container_width=True)
-        
-        # Download dei dati per backup
-        csv = st.session_state['players_db'].to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Esporta in CSV", csv, "scouting_data.csv", "text/csv")
-        
-        # Warning Svuota DB
+        # --- SEZIONE CANCELLAZIONE SICURA ---
         st.divider()
-        st.warning("⚠️ Zona Pericolosa")
-        check = st.checkbox("Confermo di voler abilitare la cancellazione")
-        if check and st.button("🗑️ CANCELLA TUTTI I DATI"):
-            st.session_state['players_db'] = pd.DataFrame(columns=st.session_state['players_db'].columns)
-            st.rerun()
-    else:
-        st.write("Nessun giocatore in archivio. Usa il tasto 'Aggiungi' per iniziare.")
+        st.warning("⚠️ **Zona di Pericolo**")
+        
+        # Primo passaggio: Checkbox di sblocco
+        conferma_sblocco = st.checkbox("Voglio abilitare la cancellazione totale dei dati")
+        
+        if conferma_sblocco:
+            # Secondo passaggio: Pulsante rosso che appare solo se il checkbox è attivo
+            st.error("Attenzione: questa operazione è irreversibile!")
+            if st.button("🗑️ SVUOTA DEFINITIVAMENTE IL DATABASE", use_container_width=True):
+                # Azzeramento del DataFrame mantenendo le colonne
+                st.session_state['players_db'] = pd.DataFrame(columns=st.session_state['players_db'].columns)
+                
+                # Feedback visivo e ricaricamento
+                st.success("Database svuotato con successo.")
+                st.rerun()
+        
