@@ -117,6 +117,42 @@ elif st.session_state['view'] == 'dashboard':
             if st.button("📝 Modifica Dati"):
                 st.session_state['editing_index'] = nomi.index(mod)
                 st.session_state['view'] = 'modifica'; st.rerun()
+
+        # --- SEZIONE ESPORTA ---
+        st.write("---")
+        st.subheader("📥 Esporta Dati")
+        
+        # Convertiamo il DataFrame in CSV (formato stringa)
+        csv = df.to_csv(index=False).encode('utf-8')
+        
+        st.download_button(
+            label="💾 Scarica DB CSV",
+            data=csv,
+            file_name=f"scouting_{st.session_state['camp_scelto']}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+        # --- SEZIONE IMPORTA ---
+        st.subheader("📤 Importa Dati")
+        uploaded_file = st.file_uploader("Scegli un file CSV da caricare nel database", type="csv")
+        
+        if uploaded_file is not None:
+            if st.button("🚀 CARICA E UNISCI AL DATABASE"):
+                try:
+                    # Leggiamo il file caricato
+                    import_df = pd.read_csv(uploaded_file)
+                    
+                    # Uniamo i dati nuovi a quelli esistenti
+                    st.session_state['players_db'] = pd.concat([st.session_state['players_db'], import_df], ignore_index=True)
+                    
+                    # Salviamo fisicamente sul file locale
+                    salva_dati(st.session_state['players_db'])
+                    
+                    st.success(f"Importati correttamente {len(import_df)} giocatori!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Errore durante il caricamento: {e}")
         
         st.divider()
         check = st.checkbox("Abilita cancellazione totale")
