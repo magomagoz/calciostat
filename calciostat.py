@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-# Importiamo plotly in modo sicuro
+# Importiamo plotly in modo sicuro per i grafici
 try:
     import plotly.express as px
 except ImportError:
@@ -11,14 +11,14 @@ except ImportError:
 # --- CONFIGURAZIONE ---
 st.set_page_config(page_title="Scouting Management Pro", layout="wide")
 
-# Liste Squadre
+# Liste Squadre Popolabili
 SQUADRE_ELITE_C = ["Accademia Real Tuscolano", "Trastevere", "Vigor Perconti", "Urbetevere", "Grifone Grimaldi", "Nuova Tor Tre Teste"]
 SQUADRE_REGIONALI_B = ["Setteville", "Villalba", "Guidonia", "Tivoli", "Spes Montesacro"]
 
-# Inizializzazione Database
+# Inizializzazione Database in Session State
 if 'players_db' not in st.session_state:
     cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
-            "Minutaggio", "Gol fatti/subiti", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
+            "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
     st.session_state['players_db'] = pd.DataFrame(columns=cols)
 
 if 'view' not in st.session_state:
@@ -34,41 +34,51 @@ if not st.session_state['logged_in']:
     st.title("🔐 Login Scouting")
     u = st.text_input("User")
     p = st.text_input("Pass", type="password")
-    if st.button("Entra"):
+    if st.button("Entra", use_container_width=True):
         if u == "admin" and p == "scout2026":
             st.session_state['logged_in'] = True
             st.rerun()
+        else:
+            st.error("Credenziali errate")
     st.stop()
 
 # --- FUNZIONE CALCOLO RATING AUTOMATICO ---
-def calcola_rating_empirico(presenze, gol, minuti, data_nascita):
+def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo):
     # Punto di partenza richiesto
     rating = 5.0
     
-    # Bonus Statistiche
-    rating += (gol * 0.2)             # 0.2 punti per ogni gol
+    # Bonus Gol differenziato per Ruolo
+    if ruolo == "D":
+        rating += (gol * 0.5)  # Un difensore che segna è raro
+    elif ruolo == "C":
+        rating += (gol * 0.3)
+    else:
+        rating += (gol * 0.2)  # Attaccanti
+        
+    # Bonus Esperienza e Minutaggio
     rating += (presenze // 3) * 0.1   # 0.1 punti ogni 3 presenze
     rating += (minuti // 200) * 0.1   # 0.1 punti ogni 200 minuti
     
-    # Bonus Età (Empirico: più è giovane, più il potenziale alza il rating)
+    # Bonus Età (Potenziale giovani)
     anno_nascita = data_nascita.year
-    if anno_nascita >= 2010:          # Giocatore sotto quota
-        rating += 0.5
-    elif anno_nascita == 2009:
-        rating += 0.2
+    if anno_nascita >= 2010: rating += 0.5
+    elif anno_nascita == 2009: rating += 0.2
         
-    # Limite massimo 10.0
     return round(min(rating, 10.0), 1)
 
 # --- NAVBAR ---
-st.title("⚽ Scouting System")
+st.title("⚽ Scouting Intelligence System")
+st.write(f"Campionato Attuale: **{st.session_state['camp_scelto']}**")
 c1, c2, c3 = st.columns(3)
 with c1:
-    if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
+    if st.button("🏆 Campionato", use_container_width=True): 
+        st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Aggiungi", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Aggiungi", use_container_width=True): 
+        st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
-    if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
+    if st.button("📊 Statistiche", use_container_width=True): 
+        st.session_state['view'] = 'stats'; st.rerun()
 
 st.divider()
 
@@ -77,13 +87,14 @@ st.divider()
 if st.session_state['view'] == 'campionato':
     st.subheader("Seleziona Campionato")
     st.session_state['camp_scelto'] = st.selectbox("Girone:", ["U17 Elite - C", "U17 Regionali - B"])
-    if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
+    if st.button("Conferma e Vai alla Dashboard"): 
+        st.session_state['view'] = 'dashboard'; st.rerun()
 
 elif st.session_state['view'] == 'aggiungi':
-    st.subheader(f"Aggiungi Giocatore - {st.session_state['camp_scelto']}")
+    st.subheader(f"Scheda Giocatore - {st.session_state['camp_scelto']}")
     lista = SQUADRE_ELITE_C if st.session_state['camp_scelto'] == "U17 Elite - C" else SQUADRE_REGIONALI_B
     
-    with st.form("add_player"):
+    with st.form("add_player", clear_on_submit=True):
         col_a, col_b = st.columns(2)
         squadra = col_a.selectbox("Squadra", lista)
         ruolo = col_b.selectbox("Ruolo", ["P", "D", "C", "A"])
@@ -92,48 +103,56 @@ elif st.session_state['view'] == 'aggiungi':
         nome = st.text_input("Nome")
         nascita = st.date_input("Data di Nascita", min_value=date(1900,1,1), value=date(2009,1,1))
         
-        # Rating Decimale 1-10
-        rating = st.number_input("Rating Empirico (1.0 - 10.0)", 1.0, 10.0, 6.0, 0.1)
-        
         col_c, col_d, col_e = st.columns(3)
         pres = col_c.number_input("Presenze", 0)
         minuti = col_d.number_input("Minuti", 0)
-        gol = col_e.number_input("Gol", 0)
+        gol = col_e.number_input("Gol segnati", 0)
         
-        note = st.text_area("Note")
+        fatica = st.slider("Livello Fatica (%)", 0, 100, 0)
+        note = st.text_area("Note Tecniche / Osservazioni")
         
         if st.form_submit_button("💾 CALCOLA RATING E SALVA"):
-            # Calcolo automatico prima del salvataggio
-            rating_finale = calcola_rating_empirico(presenze, gol, minuti, nascita)
+            rating_finale = calcola_rating_empirico(pres, gol, minuti, nascita, ruolo)
             
             nuovo_record = pd.DataFrame([[
-                squadra, cognome, nome, ruolo, nascita, presenze, 
+                squadra, cognome, nome, ruolo, nascita, pres, 
                 minuti, gol, fatica, 0, 0, rating_finale, note
             ]], columns=st.session_state['players_db'].columns)
             
             st.session_state['players_db'] = pd.concat([st.session_state['players_db'], nuovo_record], ignore_index=True)
-            st.success(f"Giocatore salvato! Rating calcolato: {rating_finale}")
+            st.success(f"Salvataggio riuscito! Rating calcolato: {rating_finale}")
             st.session_state['view'] = 'dashboard'
             st.rerun()
 
 elif st.session_state['view'] == 'stats':
+    st.subheader("📊 Analisi Performance")
     if not st.session_state['players_db'].empty:
         df = st.session_state['players_db']
-        st.plotly_chart(px.pie(df, names='Ruolo', title="Distribuzione Ruoli"), use_container_width=True)
-        st.plotly_chart(px.bar(df, x='Cognome', y='Rating', color='Squadra', title="Rating Giocatori"), use_container_width=True)
+        # Grafici
+        fig_pie = px.pie(df, names='Ruolo', title="Distribuzione Ruoli in Rosa", hole=0.3)
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+        fig_bar = px.bar(df, x='Cognome', y='Rating', color='Squadra', 
+                         title="Classifica Valore Empirico (Rating)", text_auto=True)
+        st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        st.info("Aggiungi dati per vedere i grafici.")
+        st.info("Aggiungi giocatori per generare i grafici.")
 
 else: # DASHBOARD
-    st.subheader("📋 Database Scouting")
+    st.subheader("📋 Database Scouting Attivo")
     if not st.session_state['players_db'].empty:
         st.dataframe(st.session_state['players_db'], use_container_width=True)
         
+        # Download dei dati per backup
+        csv = st.session_state['players_db'].to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Esporta in CSV", csv, "scouting_data.csv", "text/csv")
+        
         # Warning Svuota DB
         st.divider()
-        check = st.checkbox("Abilita cancellazione totale")
-        if check and st.button("🗑️ SVUOTA TUTTO"):
+        st.warning("⚠️ Zona Pericolosa")
+        check = st.checkbox("Confermo di voler abilitare la cancellazione")
+        if check and st.button("🗑️ CANCELLA TUTTI I DATI"):
             st.session_state['players_db'] = pd.DataFrame(columns=st.session_state['players_db'].columns)
             st.rerun()
     else:
-        st.write("Nessun giocatore inserito.")
+        st.write("Nessun giocatore in archivio. Usa il tasto 'Aggiungi' per iniziare.")
