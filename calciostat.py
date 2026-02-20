@@ -2,113 +2,147 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-# Configurazione Pagina
-st.set_page_config(page_title="Scouting Management", layout="wide")
+# --- CONFIGURAZIONE PAGINA ---
+st.set_page_config(page_title="Scouting Management", layout="wide", page_icon="⚽")
 
-# --- SISTEMA DI LOGIN ---
+# --- 1. CONFIGURAZIONE SQUADRE (Aggiungi qui tutte le squadre che vuoi) ---
+SQUADRE_ELITE_C = [
+    "Accademia Real Tuscolano", "Trastevere", "Vigor Perconti", 
+    "Urbetevere", "Grifone Grimaldi", "Nuova Tor Tre Teste",
+    "Lodigiani", "Savio", "Cinecittà Bettini", "Campus EUR"
+]
+
+SQUADRE_REGIONALI_B = [
+    "Setteville", "Villalba", "Guidonia", "Tivoli", 
+    "Spes Montesacro", "Settecamini", "Riano"
+]
+
+SQUADRE_PROVINCIALI = [
+    "Squadra Esempio A", "Squadra Esempio B", "Squadra Esempio C"
+]
+
+# --- INIZIALIZZAZIONE SESSION STATE (Memoria dell'App) ---
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
-
-if not st.session_state['logged_in']:
-    st.title("🔐 Accesso Scouting Management")
-    user = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if user == "admin" and password == "scout2026": 
-            st.session_state['logged_in'] = True
-            st.rerun()
-        else:
-            st.error("Credenziali errate")
-    st.stop()
-
-# --- INIZIALIZZAZIONE DATABASE ---
 if 'players_db' not in st.session_state:
-    # Squadra inserita come prima colonna
     cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
             "Minutaggio", "Gol fatti/subiti", "Fatica", "Cartellini Gialli", 
             "Cartellini Rossi", "Note"]
     st.session_state['players_db'] = pd.DataFrame(columns=cols)
-
-# --- DASHBOARD PRINCIPALE ---
-st.title("⚽ Scouting Management")
-
 if 'view' not in st.session_state:
     st.session_state['view'] = 'dashboard'
+if 'camp_scelto' not in st.session_state:
+    st.session_state['camp_scelto'] = "U17 Elite - C"
 
-# Mostriamo i pulsanti di navigazione
-col1, col2 = st.columns(2)
-with col1:
+# --- FUNZIONE DI NAVIGAZIONE ---
+def cambia_pagina(nome_pagina):
+    st.session_state['view'] = nome_pagina
+    st.rerun()
+
+# --- SISTEMA DI LOGIN ---
+if not st.session_state['logged_in']:
+    st.title("🔐 Accesso Scouting Management")
+    with st.container():
+        user = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Login", use_container_width=True):
+            if user == "admin" and password == "scout2026": 
+                st.session_state['logged_in'] = True
+                st.rerun()
+            else:
+                st.error("Credenziali errate")
+    st.stop()
+
+# --- DASHBOARD PRINCIPALE ---
+st.title("⚽ Scouting Management System")
+st.write(f"Campionato attivo: **{st.session_state['camp_scelto']}**")
+
+# Pulsanti di navigazione sempre visibili
+c1, c2 = st.columns(2)
+with c1:
     if st.button("🏆 Scelta Campionato", use_container_width=True):
-        st.session_state['view'] = 'campionato'
-        st.rerun()
-with col2:
+        cambia_pagina('campionato')
+with c2:
     if st.button("➕ Aggiungi Giocatore", use_container_width=True):
-        st.session_state['view'] = 'aggiungi'
-        st.rerun()
+        cambia_pagina('aggiungi')
 
 st.divider()
 
-# --- LOGICA DELLE PAGINE ---
+# --- GESTIONE DELLE PAGINE ---
 
-# 1. SCHERMATA AGGIUNGI GIOCATORE
-if st.session_state['view'] == 'aggiungi':
-    st.subheader("➕ Inserisci Giocatore nel Database")
-    if st.button("⬅️ Annulla e torna alla Home"):
-        st.session_state['view'] = 'dashboard'
-        st.rerun()
-        
-    with st.form("new_player", clear_on_submit=True):
-        # Prima riga: Squadra e Dati Anagrafici
-        c1, c2, c3 = st.columns([2, 2, 2])
-        squadra = c1.text_input("Squadra") # Campo libero richiesto
-        cognome = c2.text_input("Cognome")
-        nome = c3.text_input("Nome")
-        
-        # Seconda riga: Ruolo e Nascita
-        c4, c5, c6 = st.columns(3)
-        ruolo = c4.selectbox("Ruolo", ["P", "D", "C", "A"])
-        nascita = c5.date_input("Data di nascita", min_value=date(1900, 1, 1), value=date(2009, 1, 1))
-        presenze = c6.number_input("Presenze", min_value=0, step=1)
-        
-        # Terza riga: Statistiche
-        c7, c8, c9 = st.columns(3)
-        minuti = c7.number_input("Minutaggio", min_value=0, step=1)
-        gol = c8.number_input("Gol fatti/subiti", step=1)
-        fatica = c9.slider("Fatica (%)", 0, 100, 0)
-        
-        # Quarta riga: Disciplina
-        c10, c11 = st.columns(2)
-        gialli = c10.number_input("Gialli", min_value=0, step=1)
-        rossi = c11.number_input("Rossi", min_value=0, step=1)
-        
-        note = st.text_area("Note Tecniche (osservazioni, punti di forza/debolezza)")
-        
-        if st.form_submit_button("💾 Salva nel Database"):
-            new_player = pd.DataFrame([[squadra, cognome, nome, ruolo, nascita, presenze, minuti, gol, fatica, gialli, rossi, note]], 
-                                     columns=st.session_state['players_db'].columns)
-            st.session_state['players_db'] = pd.concat([st.session_state['players_db'], new_player], ignore_index=True)
-            
-            st.session_state['view'] = 'dashboard' 
-            st.success("Salvataggio completato!")
-            st.rerun()
-
-# 2. SCHERMATA CAMPIONATO
-elif st.session_state['view'] == 'campionato':
+# 1. PAGINA: SCELTA CAMPIONATO
+if st.session_state['view'] == 'campionato':
     st.subheader("🏆 Impostazioni Campionato")
-    if st.button("⬅️ Torna alla Home"):
-        st.session_state['view'] = 'dashboard'
-        st.rerun()
-    st.selectbox("Seleziona Girone di riferimento:", ["U17 Elite - C", "U17 Regionali - B", "Provinciali Roma"])
+    scelta = st.selectbox(
+        "Seleziona il Campionato di riferimento:", 
+        ["U17 Elite - C", "U17 Regionali - B", "Provinciali Roma"],
+        index=0
+    )
+    if st.button("Conferma Scelta"):
+        st.session_state['camp_scelto'] = scelta
+        cambia_pagina('dashboard')
 
-# 3. HOME (DASHBOARD) - Mostra sempre la tabella
+# 2. PAGINA: AGGIUNGI GIOCATORE
+elif st.session_state['view'] == 'aggiungi':
+    st.subheader(f"➕ Nuovo Inserimento - {st.session_state['camp_scelto']}")
+    
+    # Selezione dinamica della lista squadre
+    if st.session_state['camp_scelto'] == "U17 Elite - C":
+        lista_squadre = SQUADRE_ELITE_C
+    elif st.session_state['camp_scelto'] == "U17 Regionali - B":
+        lista_squadre = SQUADRE_REGIONALI_B
+    else:
+        lista_squadre = SQUADRE_PROVINCIALI
+
+    if st.button("⬅️ Annulla e torna alla Home"):
+        cambia_pagina('dashboard')
+
+    with st.form("form_giocatore", clear_on_submit=True):
+        f1, f2, f3 = st.columns(3)
+        squadra = f1.selectbox("Squadra", lista_squadre)
+        cognome = f2.text_input("Cognome")
+        nome = f3.text_input("Nome")
+        
+        f4, f5, f6 = st.columns(3)
+        ruolo = f4.selectbox("Ruolo", ["P", "D", "C", "A"])
+        # Data di nascita sbloccata dal 1900
+        nascita = f5.date_input("Data di nascita", min_value=date(1900, 1, 1), value=date(2009, 1, 1))
+        presenze = f6.number_input("Presenze", min_value=0, step=1)
+        
+        f7, f8, f9 = st.columns(3)
+        minuti = f7.number_input("Minutaggio totale", min_value=0, step=1)
+        gol = f8.number_input("Gol fatti/subiti", step=1)
+        fatica = f9.slider("Livello Fatica (%)", 0, 100, 0)
+        
+        f10, f11 = st.columns(2)
+        gialli = f10.number_input("Cartellini Gialli", min_value=0, step=1)
+        rossi = f11.number_input("Cartellini Rossi", min_value=0, step=1)
+        
+        note = st.text_area("Note e Osservazioni Tecniche")
+        
+        if st.form_submit_button("💾 SALVA NEL DATABASE"):
+            nuovo_record = pd.DataFrame([[
+                squadra, cognome, nome, ruolo, nascita, presenze, 
+                minuti, gol, fatica, gialli, rossi, note
+            ]], columns=st.session_state['players_db'].columns)
+            
+            st.session_state['players_db'] = pd.concat([st.session_state['players_db'], nuovo_record], ignore_index=True)
+            st.success("Giocatore salvato correttamente!")
+            cambia_pagina('dashboard')
+
+# 3. PAGINA: DASHBOARD (Visualizzazione Tabella)
 if st.session_state['view'] == 'dashboard':
-    st.subheader("📋 Database Giocatori")
+    st.subheader("📋 Database Scouting Attuale")
     if not st.session_state['players_db'].empty:
-        # Visualizzazione della tabella con i dati salvati
+        # Mostra la tabella
         st.dataframe(st.session_state['players_db'], use_container_width=True)
         
-        # Funzionalità di esportazione
+        # Bottone per scaricare i dati
         csv = st.session_state['players_db'].to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Esporta in CSV per Excel", csv, "scouting_data.csv", "text/csv")
+        st.download_button("📥 Scarica Database Excel (CSV)", csv, "scouting_2026.csv", "text/csv")
+        
+        if st.button("🗑️ Svuota Database (Attenzione!)"):
+            st.session_state['players_db'] = pd.DataFrame(columns=st.session_state['players_db'].columns)
+            st.rerun()
     else:
-        st.info("Il database è vuoto. Clicca su 'Aggiungi Giocatore' per iniziare.")
+        st.info("Il database è vuoto. Inizia aggiungendo un giocatore.")
