@@ -102,9 +102,17 @@ elif st.session_state['view'] == 'aggiungi':
         
         note = st.text_area("Note")
         
-        if st.form_submit_button("💾 SALVA"):
-            new_row = [squadra, cognome, nome, ruolo, nascita, pres, minuti, gol, 0, 0, 0, rating, note]
-            st.session_state['players_db'].loc[len(st.session_state['players_db'])] = new_row
+        if st.form_submit_button("💾 CALCOLA RATING E SALVA"):
+            # Calcolo automatico prima del salvataggio
+            rating_finale = calcola_rating_empirico(presenze, gol, minuti, nascita)
+            
+            nuovo_record = pd.DataFrame([[
+                squadra, cognome, nome, ruolo, nascita, presenze, 
+                minuti, gol, fatica, 0, 0, rating_finale, note
+            ]], columns=st.session_state['players_db'].columns)
+            
+            st.session_state['players_db'] = pd.concat([st.session_state['players_db'], nuovo_record], ignore_index=True)
+            st.success(f"Giocatore salvato! Rating calcolato: {rating_finale}")
             st.session_state['view'] = 'dashboard'
             st.rerun()
 
