@@ -13,7 +13,7 @@ if not st.session_state['logged_in']:
     user = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        if user == "admin" and password == "scout2026": # Puoi cambiare queste credenziali
+        if user == "Marco" and password == "DB2026": # Puoi cambiare queste credenziali
             st.session_state['logged_in'] = True
             st.rerun()
         else:
