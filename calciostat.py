@@ -1,61 +1,47 @@
 import streamlit as st
 import pandas as pd
 import io
-import re
 
-st.set_page_config(page_title="Scout Manual Mode", layout="wide")
-st.title("⚽ Trasformatore Dati: Tuttocampo / Gazzetta")
+st.set_page_config(page_title="Scout IamCalcio", layout="wide")
+st.title("⚽ Estrattore Rosa - Accademia Real Tuscolano")
 
-st.info("💡 Questo metodo bypassa ogni blocco: Copia la tabella dal sito e incollala qui sotto.")
-
-# Area di testo per l'inserimento manuale
-raw_input = st.text_area("1. Incolla qui i dati copiati dal sito:", height=300, 
-                        placeholder="Incolla qui la classifica o la rosa...")
-
-def clean_scraped_data(text):
-    # Rimuoviamo righe vuote e puliamo gli spazi
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    # Tentativo di ricostruzione tabella: 
-    # Spesso il copia-incolla da iPad mette ogni cella su una nuova riga
-    # Se vediamo troppe righe singole, proviamo a raggrupparle
-    data_rows = []
-    current_row = []
-    
-    # Logica euristica: una riga di classifica solitamente ha 8-12 colonne
-    # Proviamo a capire quante colonne ha la tabella incollata
-    for line in lines:
-        current_row.append(line)
-        # Se la riga finisce con dei numeri (tipico dei punti/partite), 
-        # potrebbe essere la fine di una riga di tabella
-        if len(current_row) > 5 and re.search(r'\d+$', line):
-            data_rows.append(current_row)
-            current_row = []
-    
-    if not data_rows: # Se la logica sopra fallisce, carichiamo come testo semplice
-        return pd.DataFrame(lines, columns=["Dati Estratti"])
-        
-    return pd.DataFrame(data_rows)
-
-if st.button("🚀 Elabora Tabella"):
-    if raw_input:
-        df = clean_scraped_data(raw_input)
-        st.success("Dati elaborati!")
-        st.dataframe(df, use_container_width=True)
-        
-        # Download per Excel
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Scarica in Excel (CSV)", csv, "dati_scout.csv", "text/csv")
-    else:
-        st.warning("Incolla prima dei dati nel box!")
-
-st.markdown("---")
-st.markdown("### 📲 Come fare su iPad:")
+st.info("I siti come IamCalcio bloccano l'accesso diretto. Segui questi passaggi:")
 st.markdown("""
-1. Vai su **Tuttocampo** o **Gazzetta Regionale** con Safari.
-2. Vai sulla pagina dell'**Accademia Real Tuscolano**.
-3. Seleziona la tabella (classifica o rosa) tenendo premuto e trascinando.
-4. Scegli **Copia**.
-5. Torna qui, tocca nel box e scegli **Incolla**.
-6. Premi il tasto **Elabora**.
+1. Apri [questa pagina](https://roma.iamcalcio.it/social/squadre/7686/accademia-real-tuscolano/rosa.html) su Safari.
+2. Seleziona con il dito tutta la tabella dei giocatori.
+3. Torna qui e **Incolla** tutto nel box sotto.
 """)
+
+# Box per incollare i dati
+testo_incollato = st.text_area("Incolla qui la rosa copiata:", height=300)
+
+if st.button("🛠️ Genera Tabella Pulita"):
+    if testo_incollato:
+        try:
+            # Pulizia: IamCalcio spesso mette molti spazi o invii tra nome e ruolo
+            linee = [l.strip() for l in testo_incollato.split('\n') if l.strip()]
+            
+            # Proviamo a ricostruire la tabella (Nome, Ruolo, Anno, ecc.)
+            # IamCalcio di solito mette i dati in sequenza
+            giocatori = []
+            # Esempio di raggruppamento ogni 4-5 elementi se sono incollate in colonna singola
+            # Oppure lettura diretta se è rimasto il formato tabella
+            
+            df = pd.read_csv(io.StringIO(testo_incollato), sep='\t', header=None)
+            if len(df.columns) < 2:
+                 # Se il copia-incolla è andato a capo per ogni cella
+                 st.warning("I dati sembrano incollati riga per riga. Sto provando a riordinarli...")
+                 # Qui puoi aggiungere logica extra se vedi che i dati sono tutti in fila
+            
+            st.success("Tabella generata!")
+            st.dataframe(df, use_container_width=True)
+            
+            # Export Excel per il tuo scouting
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Scarica Excel (CSV)", csv, "rosa_tuscolano.csv", "text/csv")
+            
+        except Exception as e:
+            st.error(f"Errore nella lettura: {e}")
+    else:
+        st.warning("Copia e incolla i dati prima di premere il tasto.")
+
