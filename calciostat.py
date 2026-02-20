@@ -89,7 +89,7 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Aggiungi giocatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Aggiungi calciatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
     if st.button("📋 Elenco giocatori", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
 with c4:
@@ -128,7 +128,7 @@ elif st.session_state['view'] == 'dashboard':
         st.info("DB Vuoto.")
 
 elif st.session_state['view'] == 'aggiungi':
-    st.subheader(f"➕ Nuovo Profilo")
+    st.subheader(f"➕ Nuovo elemento")
     squadre = GIRONI_SQUADRE[st.session_state['camp_scelto']]
     with st.form("add_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
@@ -177,7 +177,7 @@ elif st.session_state['view'] == 'modifica':
             
         nuova_sq = c1.selectbox("Squadra", squadre_attuali, index=sq_idx)
         nuovo_ru = c2.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"], 
-                                index=["Portiere", "Difensori", "Centrocampista", "Attaccante"].index(gio['Ruolo']))
+                                index=["Portiere", "Difensore", "Centrocampista", "Attaccante"].index(gio['Ruolo']))
         
         nuovo_cog = st.text_input("Cognome", value=gio['Cognome'])
         nuovo_nom = st.text_input("Nome", value=gio['Nome'])
@@ -188,8 +188,8 @@ elif st.session_state['view'] == 'modifica':
         nuovo_gl = c5.number_input("Gol", value=int(gio['Gol']))
         
         c6, c7 = st.columns(2)
-        nuovo_gi = c6.number_input("Gialli", value=int(gio['Gialli']))
-        nuovo_ro = c7.number_input("Rossi", value=int(gio['Rossi']))
+        nuovo_gi = c6.number_input("Cartellini Gialli", value=int(gio['Gialli']))
+        nuovo_ro = c7.number_input("Cartellini Rossi", value=int(gio['Rossi']))
         
         nuovo_nt = st.text_area("Note", value=gio['Note'])
         
