@@ -22,8 +22,29 @@ GIRONI_SQUADRE = {
     "ALLIEVI PROVINCIALI U17 ROMA - Girone F": ["Spes Artiglio", "Tor Tre Teste Next Gen", "S. Francesca Cabrini '98", "Vicovaro", "GDC Ponte di Nona", "Futbol Talenti", "FC Grotte Celoni Roma VII", "Virtus Torre Maura", "Setteville Caserosse", "Ledesma Academy", "Football Jus", "Vis Subiaco", "Villa Adriana", "Olimpica Roma"]
 }
 
-# Inizializzazione Database in Session State
+# Nome del file dove verranno salvati i dati
+DB_FILE = "database_scouting.csv"
+
+def carica_dati():
+    """Carica i dati dal file CSV se esiste, altrimenti crea un DF vuoto"""
+    try:
+        df = pd.read_csv(DB_FILE)
+        # Convertiamo la colonna data per evitare errori
+        df['Data di nascita'] = pd.to_datetime(df['Data di nascita']).dt.date
+        return df
+    except FileNotFoundError:
+        cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
+                "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
+        return pd.DataFrame(columns=cols)
+
+def salva_dati(df):
+    """Salva il DataFrame su file CSV"""
+    df.to_csv(DB_FILE, index=False)
+
+# Inizializzazione Database con persistenza
 if 'players_db' not in st.session_state:
+    st.session_state['players_db'] = carica_dati()
+    
     cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
             "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
     st.session_state['players_db'] = pd.DataFrame(columns=cols)
@@ -203,7 +224,10 @@ elif st.session_state['view'] == 'aggiungi':
                 # 4. AGGIORNO IL DATABASE IN SESSION STATE
                 # Usiamo loc[len(...)] che è più stabile di concat per singoli inserimenti
                 st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo_giocatore
-                
+            
+                # --- NOVITÀ: Salvataggio fisico su file ---
+                salva_dati(st.session_state['players_db'])
+                                
                 # 5. CAMBIO VISTA E FORZO IL REFRESH
                 st.session_state['view'] = 'dashboard'
                 st.success(f"Giocatore {cognome} salvato con successo!")
@@ -234,11 +258,14 @@ elif st.session_state['view'] == 'stats':
         if conferma_sblocco:
             # Secondo passaggio: Pulsante rosso che appare solo se il checkbox è attivo
             st.error("Attenzione: questa operazione è irreversibile!")
-            if st.button("🗑️ SVUOTA DEFINITIVAMENTE IL DATABASE", use_container_width=True):
-                # Azzeramento del DataFrame mantenendo le colonne
+
+            if st.button("🗑️ SVUOTA DEFINITIVAMENTE IL DATABASE"):
+                # Svuota memoria
                 st.session_state['players_db'] = pd.DataFrame(columns=st.session_state['players_db'].columns)
                 
-                # Feedback visivo e ricaricamento
-                st.success("Database svuotato con successo.")
+                # --- NOVITÀ: Svuota file fisico ---
+                salva_dati(st.session_state['players_db'])
+                
+                st.success("Database azzerato.")
                 st.rerun()
-        
+
