@@ -89,9 +89,9 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Aggiungi", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Aggiungi giocatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
-    if st.button("📋 Elenco DB", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
+    if st.button("📋 Elenco giocatori", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
 with c4:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 
