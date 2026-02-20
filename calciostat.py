@@ -40,6 +40,26 @@ if not st.session_state['logged_in']:
             st.rerun()
     st.stop()
 
+# --- FUNZIONE CALCOLO RATING AUTOMATICO ---
+def calcola_rating_empirico(presenze, gol, minuti, data_nascita):
+    # Punto di partenza richiesto
+    rating = 5.0
+    
+    # Bonus Statistiche
+    rating += (gol * 0.2)             # 0.2 punti per ogni gol
+    rating += (presenze // 3) * 0.1   # 0.1 punti ogni 3 presenze
+    rating += (minuti // 200) * 0.1   # 0.1 punti ogni 200 minuti
+    
+    # Bonus Età (Empirico: più è giovane, più il potenziale alza il rating)
+    anno_nascita = data_nascita.year
+    if anno_nascita >= 2010:          # Giocatore sotto quota
+        rating += 0.5
+    elif anno_nascita == 2009:
+        rating += 0.2
+        
+    # Limite massimo 10.0
+    return round(min(rating, 10.0), 1)
+
 # --- NAVBAR ---
 st.title("⚽ Scouting System")
 c1, c2, c3 = st.columns(3)
