@@ -1,65 +1,39 @@
 import streamlit as st
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
-import re
+import io
 
-st.set_page_config(page_title="Scout U17 Roma", layout="wide")
-st.title("⚽ Database Under 17 - Lazio 2026")
+st.set_page_config(page_title="Scout U17 Roma - Manuel Mode", layout="wide")
+st.title("⚽ Scout U17: Trasformatore Tabelle")
 
-# L'unica certezza è la Home dei risultati
-URL_START = "https://www.gazzettaregionale.it/risultati-classifiche"
+st.markdown("""
+### 📝 Istruzioni per iPad:
+1. Apri **Safari** sulla pagina della Gazzetta Regionale.
+2. Seleziona con il dito tutta la tabella (nomi squadre e punti).
+3. Torna qui e **incolla** nel box sotto.
+""")
 
-@st.cache_data(ttl=600)
-def find_and_scrape(base_url, target_keywords):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-        'Referer': 'https://www.gazzettaregionale.it/'
-    }
-    
-    try:
-        # 1. Carichiamo la pagina principale per trovare l'URL vero
-        response = requests.get(base_url, headers=headers, timeout=15)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Cerchiamo tutti i link che contengono le nostre parole chiave
-        links = soup.find_all('a', href=True)
-        found_url = None
-        
-        for link in links:
-            href = link['href']
-            # Cerchiamo un link che contenga "under-17" e "girone-c"
-            if all(k in href.lower() for k in target_keywords):
-                found_url = href if href.startswith('http') else f"https://www.gazzettaregionale.it{href}"
-                break
-        
-        if not found_url:
-            return "❌ Non riesco a trovare il link automatico. Il sito potrebbe essere protetto o cambiato."
+# Box di testo gigante per incollare i dati
+raw_data = st.text_area("Incolla qui i dati della tabella:", height=300, placeholder="Pos Squadra G V N P...")
 
-        st.info(f"🔗 Link trovato: {found_url}")
-        
-        # 2. Proviamo a leggere la tabella dal link trovato
-        res_final = requests.get(found_url, headers=headers)
-        tabelle = pd.read_html(res_final.text)
-        
-        if tabelle:
-            return max(tabelle, key=len)
-        return "⚠️ Pagina trovata ma nessuna tabella dati rilevata."
+if st.button("🚀 Elabora e Pulisci Dati"):
+    if raw_data:
+        try:
+            # Usiamo io.StringIO per far leggere a pandas il testo come se fosse un file
+            # sep=None con engine='python' capisce da solo se sono tabulazioni o spazi
+            df = pd.read_csv(io.StringIO(raw_data), sep='\t', header=None)
+            
+            if len(df.columns) < 2: # Se il tab non ha funzionato, proviamo con gli spazi
+                df = pd.read_csv(io.StringIO(raw_data), sep=r'\s{2,}', engine='python', header=None)
 
-    except Exception as e:
-        return f"💥 Errore: {str(e)}"
+            st.success("Dati elaborati correttamente!")
+            st.dataframe(df, use_container_width=True)
 
-# --- UI ---
-keywords = st.text_input("Parole chiave ricerca (es: under 17 elite girone c)", "under-17-elite girone-c")
-
-if st.button("🔍 Avvia Ricerca e Scarica"):
-    st.cache_data.clear()
-    word_list = keywords.lower().split()
-    risultato = find_and_scrape(URL_START, word_list)
-    
-    if isinstance(risultato, pd.DataFrame):
-        st.success("Dati estratti!")
-        st.dataframe(risultato, use_container_width=True)
-        st.download_button("📥 Scarica CSV", risultato.to_csv(index=False).encode('utf-8'), "scout.csv")
+            # Preparazione download
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Scarica Tabella Pulita (CSV)", csv, "classifica_scout.csv", "text/csv")
+            
+        except Exception as e:
+            st.error(f"Errore durante l'elaborazione: {e}")
+            st.info("Prova a selezionare la tabella in modo diverso o a includere l'intestazione.")
     else:
-        st.error(risultato)
+        st.warning("Il box è vuoto! Incolla qualcosa prima.")
