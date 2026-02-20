@@ -1,45 +1,61 @@
 import streamlit as st
 import pandas as pd
-import requests
+import io
+import re
 
-st.title("⚽ Scout Real Tuscolano - Tuttocampo")
+st.set_page_config(page_title="Scout Manual Mode", layout="wide")
+st.title("⚽ Trasformatore Dati: Tuttocampo / Gazzetta")
 
-# URL della scheda squadra su Tuttocampo
-url_tuscolano = "https://www.tuttocampo.it/Lazio/AllieviProvincialiU17/GironeBProvincialiRoma/Squadra/AccademiaRTuscolanoC/1145427/Scheda"
+st.info("💡 Questo metodo bypassa ogni blocco: Copia la tabella dal sito e incollala qui sotto.")
 
-@st.cache_data(ttl=3600)
-def get_tuttocampo_data(url):
-    # Headers molto importanti per non essere bloccati da Tuttocampo
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        'Accept-Language': 'it-IT,it;q=0.9',
-        'Referer': 'https://www.tuttocampo.it/'
-    }
+# Area di testo per l'inserimento manuale
+raw_input = st.text_area("1. Incolla qui i dati copiati dal sito:", height=300, 
+                        placeholder="Incolla qui la classifica o la rosa...")
+
+def clean_scraped_data(text):
+    # Rimuoviamo righe vuote e puliamo gli spazi
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
     
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        
-        # Cerchiamo le tabelle (Classifica, Risultati, Rosa)
-        tabelle = pd.read_html(response.text)
-        return tabelle
-    except Exception as e:
-        return f"Errore: {e}"
-
-if st.button("🔄 Scarica Dati Accademia Real Tuscolano"):
-    risultati = get_tuttocampo_data(url_tuscolano)
+    # Tentativo di ricostruzione tabella: 
+    # Spesso il copia-incolla da iPad mette ogni cella su una nuova riga
+    # Se vediamo troppe righe singole, proviamo a raggrupparle
+    data_rows = []
+    current_row = []
     
-    if isinstance(risultati, list):
-        st.success("Dati scaricati!")
+    # Logica euristica: una riga di classifica solitamente ha 8-12 colonne
+    # Proviamo a capire quante colonne ha la tabella incollata
+    for line in lines:
+        current_row.append(line)
+        # Se la riga finisce con dei numeri (tipico dei punti/partite), 
+        # potrebbe essere la fine di una riga di tabella
+        if len(current_row) > 5 and re.search(r'\d+$', line):
+            data_rows.append(current_row)
+            current_row = []
+    
+    if not data_rows: # Se la logica sopra fallisce, carichiamo come testo semplice
+        return pd.DataFrame(lines, columns=["Dati Estratti"])
         
-        # Su Tuttocampo ci sono molte tabelle nella scheda squadra:
-        # Tabelle tipiche: 0=Rosa, 1=Classifica, 2=Ultimi Risultati
-        for i, tab in enumerate(risultati):
-            st.write(f"Tabella {i}")
-            st.dataframe(tab, use_container_width=True)
-            
-            # Bottone per scaricare la singola tabella
-            csv = tab.to_csv(index=False).encode('utf-8')
-            st.download_button(f"📥 Scarica Tabella {i}", csv, f"tuscolano_tab_{i}.csv", "text/csv")
+    return pd.DataFrame(data_rows)
+
+if st.button("🚀 Elabora Tabella"):
+    if raw_input:
+        df = clean_scraped_data(raw_input)
+        st.success("Dati elaborati!")
+        st.dataframe(df, use_container_width=True)
+        
+        # Download per Excel
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Scarica in Excel (CSV)", csv, "dati_scout.csv", "text/csv")
     else:
-        st.error(risultati)
+        st.warning("Incolla prima dei dati nel box!")
+
+st.markdown("---")
+st.markdown("### 📲 Come fare su iPad:")
+st.markdown("""
+1. Vai su **Tuttocampo** o **Gazzetta Regionale** con Safari.
+2. Vai sulla pagina dell'**Accademia Real Tuscolano**.
+3. Seleziona la tabella (classifica o rosa) tenendo premuto e trascinando.
+4. Scegli **Copia**.
+5. Torna qui, tocca nel box e scegli **Incolla**.
+6. Premi il tasto **Elabora**.
+""")
