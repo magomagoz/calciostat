@@ -2,9 +2,20 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
+# Importiamo plotly in modo sicuro
+try:
+    import plotly.express as px
+except ImportError:
+    st.error("Per favore aggiungi 'plotly' al file requirements.txt su GitHub!")
+
 # --- CONFIGURAZIONE ---
 st.set_page_config(page_title="Scouting Management Pro", layout="wide")
 
+# Liste Squadre
+SQUADRE_ELITE_C = ["Accademia Real Tuscolano", "Trastevere", "Vigor Perconti", "Urbetevere", "Grifone Grimaldi", "Nuova Tor Tre Teste"]
+SQUADRE_REGIONALI_B = ["Setteville", "Villalba", "Guidonia", "Tivoli", "Spes Montesacro"]
+
+# Inizializzazione Database
 if 'players_db' not in st.session_state:
     cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
             "Minutaggio", "Gol fatti/subiti", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
@@ -14,7 +25,6 @@ if 'view' not in st.session_state:
     st.session_state['view'] = 'dashboard'
 if 'camp_scelto' not in st.session_state:
     st.session_state['camp_scelto'] = "U17 Elite - C"
-
 # --- FUNZIONE CALCOLO RATING AUTOMATICO ---
 def calcola_rating_empirico(presenze, gol, minuti, data_nascita):
     # Punto di partenza richiesto
@@ -35,13 +45,27 @@ def calcola_rating_empirico(presenze, gol, minuti, data_nascita):
     # Limite massimo 10.0
     return round(min(rating, 10.0), 1)
 
+# --- LOGIN ---
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+if not st.session_state['logged_in']:
+    st.title("🔐 Login Scouting")
+    u = st.text_input("User")
+    p = st.text_input("Pass", type="password")
+    if st.button("Entra"):
+        if u == "admin" and p == "scout2026":
+            st.session_state['logged_in'] = True
+            st.rerun()
+    st.stop()
+
 # --- NAVBAR ---
-st.title("⚽ Scouting Intelligence System")
+st.title("⚽ Scouting System")
 c1, c2, c3 = st.columns(3)
 with c1:
     if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Aggiungi Giocatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Aggiungi", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 
