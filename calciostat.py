@@ -9,7 +9,8 @@ except ImportError:
     st.error("Per favore aggiungi 'plotly' al file requirements.txt su GitHub!")
 
 # --- CONFIGURAZIONE ---
-st.set_page_config(page_title="Scouting Management Pro", layout="wide")
+st.image("banner.png", layout="wide")
+#st.set_page_config(page_title="Scouting Management Pro", layout="wide")
 
 # Liste Squadre Popolabili
 SQUADRE_ELITE_C = ["Accademia Real Tuscolano", "Trastevere", "Vigor Perconti", "Urbetevere", "Grifone Grimaldi", "Nuova Tor Tre Teste"]
