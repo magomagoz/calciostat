@@ -123,22 +123,38 @@ if st.session_state['view'] == 'dashboard':
     else:
         st.info("L'elenco è vuoto. Inizia ad aggiungere giocatori per popolare il database.")
 
-# --- LOGICA PAGINE ---
-
+# --- LOGICA PAGINA CAMPIONATO ---
 if st.session_state['view'] == 'campionato':
-    st.subheader("Seleziona Campionato")
-    st.session_state['camp_scelto'] = st.selectbox("Girone:", ["U17 Elite - C", "U17 Regionali - B"])
-    if st.button("Conferma e Vai alla Dashboard"): 
-        st.session_state['view'] = 'dashboard'; st.rerun()
+    st.subheader("🏆 Selezione Girone Allievi Provinciali U17")
+    
+    # Estraiamo automaticamente i nomi dei gironi dalle chiavi del dizionario GIRONI_SQUADRE
+    lista_gironi = list(GIRONI_SQUADRE.keys())
+    
+    # Il menu a tendina ora mostrerà: "U17 Roma - Girone A", "U17 Roma - Girone B", ecc.
+    scelta_girone = st.selectbox(
+        "Scegli il girone da monitorare:", 
+        options=lista_gironi,
+        index=lista_gironi.index(st.session_state['camp_scelto']) if st.session_state['camp_scelto'] in lista_gironi else 0
+    )
+    
+    if st.button("Conferma e Vai alla Dashboard", use_container_width=True): 
+        # Salviamo la scelta e torniamo alla dashboard
+        st.session_state['camp_scelto'] = scelta_girone
+        st.session_state['view'] = 'dashboard'
+        st.rerun()
 
 elif st.session_state['view'] == 'aggiungi':
-    st.subheader(f"Scheda Giocatore - {st.session_state['camp_scelto']}")
-    lista = SQUADRE_ELITE_C if st.session_state['camp_scelto'] == "U17 Elite - C" else SQUADRE_REGIONALI_B
+    st.subheader(f"➕ Nuovo Profilo - {st.session_state['camp_scelto']}")
+    
+    # --- POSIZIONE 1: Recupero la lista corretta in base al girone scelto ---
+    squadre_disponibili = GIRONI_SQUADRE[st.session_state['camp_scelto']]
     
     with st.form("add_player", clear_on_submit=True):
-        col_a, col_b = st.columns(2)
-        squadra = col_a.selectbox("Squadra", lista)
-        ruolo = col_b.selectbox("Ruolo", ["P", "D", "C", "A"])
+        col1, col2 = st.columns(2)
+        
+        # --- POSIZIONE 2: Utilizzo la variabile per popolare il selectbox ---
+        squadra = col1.selectbox("Squadra", squadre_disponibili)
+        ruolo = col2.selectbox("Ruolo", ["P", "D", "C", "A"])
         
         cognome = st.text_input("Cognome")
         nome = st.text_input("Nome")
