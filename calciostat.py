@@ -2,17 +2,21 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-# Importiamo plotly in modo sicuro per i grafici
+# --- CONFIGURAZIONE ---
+# Nota: st.set_page_config deve essere la PRIMA istruzione Streamlit assoluta
+st.set_page_config(page_title="Scouting Management Pro", layout="wide")
+
 try:
     import plotly.express as px
 except ImportError:
-    st.error("Per favore aggiungi 'plotly' al file requirements.txt su GitHub!")
+    st.error("Per favore aggiungi 'plotly' al file requirements.txt")
 
-# --- CONFIGURAZIONE ---
-st.image("banner.png", use_column_width=True, caption="Scouting Management")
-#st.set_page_config(page_title="Scouting Management Pro", layout="wide")
+try:
+    st.image("banner.png", use_container_width=True)
+except:
+    st.title("⚽ Scouting Management")
 
-# --- LISTE SQUADRE POPOLATE ---
+# --- LISTE SQUADRE ---
 GIRONI_SQUADRE = {
     "ALLIEVI PROVINCIALI U17 ROMA - Girone A": ["Aurelia Antica Aurelio", "Leocon", "Bracciano Calcio", "Real Campagnano", "Evergreen Civitavecchia", "Santa Marinella 1947", "Cortina Sporting Club", "Anguillara Calcio", "Nuova Valle Aurelia", "Formello Calcio C.R.", "DM 84 Cerveteri", "Accademy SVS Roma", "Virtus Marina di San Nicola", "Tolfa Calcio", "Borgo Palidoro", "Forte Bravetta"],
     "ALLIEVI PROVINCIALI U17 ROMA - Girone B": ["SVS Roma", "Fortitudo Roma Club 1908", "Vigna Pia", "MYSP", "Trigoria", "CVN Casal Bernocchi", "Quadraro Sport Roma", "Real Tirreno", "S.C. Due Ponti Calcio", "O.M.C. Calcio", "Garbatella 1920", "Polisportiva G. Castello", "Stella Polare De La Salle", "Infernetto calcio"],
@@ -22,42 +26,51 @@ GIRONI_SQUADRE = {
     "ALLIEVI PROVINCIALI U17 ROMA - Girone F": ["Spes Artiglio", "Tor Tre Teste Next Gen", "S. Francesca Cabrini '98", "Vicovaro", "GDC Ponte di Nona", "Futbol Talenti", "FC Grotte Celoni Roma VII", "Virtus Torre Maura", "Setteville Caserosse", "Ledesma Academy", "Football Jus", "Vis Subiaco", "Villa Adriana", "Olimpica Roma"]
 }
 
-# Nome del file dove verranno salvati i dati
 DB_FILE = "database_scouting.csv"
 
+# --- FUNZIONI CORE ---
 def carica_dati():
-    """Carica i dati dal file CSV se esiste, altrimenti crea un DF vuoto"""
     try:
         df = pd.read_csv(DB_FILE)
-        # Convertiamo la colonna data per evitare errori
         df['Data di nascita'] = pd.to_datetime(df['Data di nascita']).dt.date
         return df
-    except FileNotFoundError:
-        cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
-                "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
+    except:
+        cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
         return pd.DataFrame(columns=cols)
 
 def salva_dati(df):
-    """Salva il DataFrame su file CSV"""
     df.to_csv(DB_FILE, index=False)
 
-# Inizializzazione Database con persistenza
+def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, rossi):
+    rating = 5.0
+    if ruolo == "Difensori": rating += (gol * 0.8)
+    elif ruolo == "Centrocampista": rating += (gol * 0.5)
+    else: rating += (gol * 0.2)
+    
+    rating += (presenze // 3) * 0.2
+    rating += (minuti // 200) * 0.33
+    
+    anno = data_nascita.year
+    if anno >= 2010: rating += 0.5
+    elif anno == 2009: rating += 0.2
+
+    rating -= (gialli * 0.3)
+    rating -= (rossi * 0.75)
+    return round(max(min(rating, 10.0), 1.0), 1)
+
+# --- INIZIALIZZAZIONE ---
 if 'players_db' not in st.session_state:
     st.session_state['players_db'] = carica_dati()
-    
-    cols = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", 
-            "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"]
-    st.session_state['players_db'] = pd.DataFrame(columns=cols)
-
 if 'view' not in st.session_state:
     st.session_state['view'] = 'dashboard'
 if 'camp_scelto' not in st.session_state:
     st.session_state['camp_scelto'] = list(GIRONI_SQUADRE.keys())[0]
-
-# --- LOGIN ---
+if 'editing_index' not in st.session_state:
+    st.session_state['editing_index'] = None
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
+# --- LOGIN ---
 if not st.session_state['logged_in']:
     st.title("🔐 Login Scouting")
     u = st.text_input("User")
@@ -70,202 +83,133 @@ if not st.session_state['logged_in']:
             st.error("Credenziali errate")
     st.stop()
 
-# --- FUNZIONE CALCOLO RATING AUTOMATICO AGGIORNATA ---
-def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, rossi):
-    # Punto di partenza richiesto
-    rating = 5.0
-    
-    # Bonus Gol differenziato per Ruolo
-    if ruolo == "D":
-        rating += (gol * 0.8)  # Un difensore che segna è raro
-    elif ruolo == "C":
-        rating += (gol * 0.5)
-    else:
-        rating += (gol * 0.2)  # Attaccanti
-        
-    # Bonus Esperienza e Minutaggio
-    rating += (presenze // 3) * 0.2    # 0.2 punti ogni 3 presenze
-    rating += (minuti // 200) * 0.33   # 0.33 punti ogni 200 minuti
-    
-    # Bonus Età (Potenziale giovani)
-    anno_nascita = data_nascita.year
-    if anno_nascita >= 2010: 
-        rating += 0.5
-    elif anno_nascita == 2009: 
-        rating += 0.2
-
-    # --- AGGIUNTA MALUS DISCIPLINARI ---
-    rating -= (gialli * 0.3)  # -0.3 per ogni ammonizione
-    rating -= (rossi * 0.75)   # -0.75 per ogni espulsione
-        
-    # Il rating non può scendere sotto l'1.0 e non può superare il 10.0
-    return round(max(min(rating, 10.0), 1.0), 1)
-
-# --- NAVBAR AGGIORNATA ---
+# --- NAVBAR ---
 st.title("⚽ Scouting Intelligence System")
-st.write(f"Campionato Attuale: **{st.session_state['camp_scelto']}**")
-
-# Layout a 4 colonne per i pulsanti
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    if st.button("🏆 Campionato", use_container_width=True): 
-        st.session_state['view'] = 'campionato'; st.rerun()
+    if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Aggiungi", use_container_width=True): 
-        st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Aggiungi", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
-    if st.button("📋 Elenco DB", use_container_width=True): 
-        st.session_state['view'] = 'dashboard'; st.rerun()
+    if st.button("📋 Elenco DB", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
 with c4:
-    if st.button("📊 Statistiche", use_container_width=True): 
-        st.session_state['view'] = 'stats'; st.rerun()
+    if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 
 st.divider()
 
-# --- LOGICA DELLA PAGINA ELENCO (DASHBOARD) ---
-if st.session_state['view'] == 'dashboard':
-    st.subheader("📋 Elenco Completo Giocatori")
-    
-    if not st.session_state['players_db'].empty:
-        # Visualizzazione tabella con possibilità di ordinamento cliccando sulle colonne
-        st.dataframe(
-            st.session_state['players_db'].sort_values(by="Rating", ascending=False), 
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # Conteggio rapido
-        tot_giocatori = len(st.session_state['players_db'])
-        st.write(f"Totale profili analizzati: **{tot_giocatori}**")
-        
-        # Bottone per scaricare i dati
-        csv = st.session_state['players_db'].to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Esporta Elenco in CSV", csv, "elenco_scouting.csv", "text/csv")
-    else:
-        st.info("L'elenco è vuoto. Inizia ad aggiungere giocatori per popolare il database.")
-
-# --- LOGICA PAGINA CAMPIONATO ---
+# --- PAGINE ---
 if st.session_state['view'] == 'campionato':
-    st.subheader("🏆 Selezione Girone Allievi Provinciali U17")
-    
-    # Estraiamo automaticamente i nomi dei gironi dalle chiavi del dizionario GIRONI_SQUADRE
-    lista_gironi = list(GIRONI_SQUADRE.keys())
-    
-    # Il menu a tendina ora mostrerà: "U17 Roma - Girone A", "U17 Roma - Girone B", ecc.
-    scelta_girone = st.selectbox(
-        "Scegli il girone da monitorare:", 
-        options=lista_gironi,
-        index=lista_gironi.index(st.session_state['camp_scelto']) if st.session_state['camp_scelto'] in lista_gironi else 0
-    )
-    
-    if st.button("Conferma e Vai alla Dashboard", use_container_width=True): 
-        # Salviamo la scelta e torniamo alla dashboard
-        st.session_state['camp_scelto'] = scelta_girone
-        st.session_state['view'] = 'dashboard'
-        st.rerun()
+    st.subheader("🏆 Selezione Girone")
+    lista_g = list(GIRONI_SQUADRE.keys())
+    st.session_state['camp_scelto'] = st.selectbox("Scegli girone:", lista_g, index=lista_g.index(st.session_state['camp_scelto']))
+    if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
+
+elif st.session_state['view'] == 'dashboard':
+    st.subheader(f"📋 Elenco - {st.session_state['camp_scelto']}")
+    df = st.session_state['players_db']
+    if not df.empty:
+        st.dataframe(df.sort_values(by="Rating", ascending=False), use_container_width=True, hide_index=True)
+        
+        st.divider()
+        nomi = df.apply(lambda x: f"{x['Cognome']} {x['Nome']} ({x['Squadra']})", axis=1).tolist()
+        mod = st.selectbox("Seleziona giocatore da modificare:", ["-- Seleziona --"] + nomi)
+        if mod != "-- Seleziona --":
+            if st.button("📝 Modifica Dati"):
+                st.session_state['editing_index'] = nomi.index(mod)
+                st.session_state['view'] = 'modifica'; st.rerun()
+        
+        st.divider()
+        check = st.checkbox("Abilita cancellazione totale")
+        if check and st.button("🗑️ SVUOTA DB"):
+            st.session_state['players_db'] = pd.DataFrame(columns=df.columns)
+            salva_dati(st.session_state['players_db'])
+            st.rerun()
+    else:
+        st.info("DB Vuoto.")
 
 elif st.session_state['view'] == 'aggiungi':
-    st.subheader(f"➕ Nuovo Profilo - {st.session_state['camp_scelto']}")
+    st.subheader(f"➕ Nuovo Profilo")
+    squadre = GIRONI_SQUADRE[st.session_state['camp_scelto']]
+    with st.form("add_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        sq = c1.selectbox("Squadra", squadre)
+        ru = c2.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"])
+        cog = st.text_input("Cognome")
+        nom = st.text_input("Nome")
+        nas = st.date_input("Nascita", value=date(2009,1,1))
+        
+        c3, c4, c5 = st.columns(3)
+        pr = c3.number_input("Presenze", 0)
+        mi = c4.number_input("Minuti", 0)
+        gl = c5.number_input("Gol", 0)
+        
+        c6, c7 = st.columns(2)
+        gi = c6.number_input("Gialli", 0)
+        ro = c7.number_input("Rossi", 0)
+        nt = st.text_area("Note")
+        
+        if st.form_submit_button("SALVA"):
+            rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
+            nuovo = [sq, cog, nom, ru, nas, pr, mi, gl, 0, gi, ro, rat, nt]
+            st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
+            salva_dati(st.session_state['players_db'])
+            st.session_state['view'] = 'dashboard'; st.rerun()
+
+elif st.session_state['view'] == 'modifica':
+    idx = st.session_state['editing_index']
+    gio = st.session_state['players_db'].iloc[idx]
     
-    # 1. Recupero la lista corretta
-    squadre_disponibili = GIRONI_SQUADRE[st.session_state['camp_scelto']]
+    st.subheader(f"📝 Modifica Scheda: {gio['Cognome']} {gio['Nome']}")
     
-    if st.button("⬅️ Annulla e torna all'Elenco"):
+    if st.button("⬅️ Annulla e torna indietro"):
         st.session_state['view'] = 'dashboard'
         st.rerun()
 
-    # Usiamo il form per raggruppare i dati
-    with st.form("add_player_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        squadra = col1.selectbox("Squadra", squadre_disponibili)
-        ruolo = col2.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"])
+    with st.form("edit_form_completo"):
+        squadre_attuali = GIRONI_SQUADRE[st.session_state['camp_scelto']]
         
-        cognome = st.text_input("Cognome")
-        nome = st.text_input("Nome")
-        nascita = st.date_input("Data di Nascita", min_value=date(1900,1,1), value=date(2025,1,1))
-        
-        c_p, c_m, c_g = st.columns(3)
-        pres = c_p.number_input("Presenze", min_value=0, step=1)
-        minuti = c_m.number_input("Minutaggio totale", min_value=0, step=1)
-        gol = c_g.number_input("Gol segnati", step=1)
-        
-        c_gi, c_ro = st.columns(2)
-        gialli = c_gi.number_input("Cartellini Gialli", min_value=0, step=1)
-        rossi = c_ro.number_input("Cartellini Rossi", min_value=0, step=1)
-        
-        note = st.text_area("Note Tecniche")
-        
-        submit = st.form_submit_button("💾 CALCOLA RATING E SALVA NEL DB")
-        
-        if submit:
-            if cognome == "" or nome == "":
-                st.error("Per favore, inserisci almeno Cognome e Nome.")
-            else:
-                # 2. CALCOLO IL RATING
-                rating_f = calcola_rating_empirico(pres, gol, minuti, nascita, ruolo, gialli, rossi)
-                
-                # 3. CREO IL NUOVO RECORD
-                nuovo_giocatore = {
-                    "Squadra": squadra,
-                    "Cognome": cognome,
-                    "Nome": nome,
-                    "Ruolo": ruolo,
-                    "Data di nascita": nascita,
-                    "Presenze": pres,
-                    "Minutaggio": minuti,
-                    "Gol": gol,
-                    "Fatica": 0, # Valore di default
-                    "Gialli": gialli,
-                    "Rossi": rossi,
-                    "Rating": rating_f,
-                    "Note": note
-                }
-                
-                # 4. AGGIORNO IL DATABASE IN SESSION STATE
-                # Usiamo loc[len(...)] che è più stabile di concat per singoli inserimenti
-                st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo_giocatore
+        c1, c2 = st.columns(2)
+        # Cerchiamo di preselezionare la squadra corretta
+        try:
+            sq_idx = squadre_attuali.index(gio['Squadra'])
+        except:
+            sq_idx = 0
             
-                # --- NOVITÀ: Salvataggio fisico su file ---
-                salva_dati(st.session_state['players_db'])
-                                
-                # 5. CAMBIO VISTA E FORZO IL REFRESH
-                st.session_state['view'] = 'dashboard'
-                st.success(f"Giocatore {cognome} salvato con successo!")
-                st.rerun() # Questo comando è fondamentale per tornare alla home
-
+        nuova_sq = c1.selectbox("Squadra", squadre_attuali, index=sq_idx)
+        nuovo_ru = c2.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"], 
+                                index=["Portiere", "Difensori", "Centrocampista", "Attaccante"].index(gio['Ruolo']))
+        
+        nuovo_cog = st.text_input("Cognome", value=gio['Cognome'])
+        nuovo_nom = st.text_input("Nome", value=gio['Nome'])
+        
+        c3, c4, c5 = st.columns(3)
+        nuovo_pr = c3.number_input("Presenze", value=int(gio['Presenze']))
+        nuovo_mi = c4.number_input("Minuti", value=int(gio['Minutaggio']))
+        nuovo_gl = c5.number_input("Gol", value=int(gio['Gol']))
+        
+        c6, c7 = st.columns(2)
+        nuovo_gi = c6.number_input("Gialli", value=int(gio['Gialli']))
+        nuovo_ro = c7.number_input("Rossi", value=int(gio['Rossi']))
+        
+        nuovo_nt = st.text_area("Note", value=gio['Note'])
+        
+        if st.form_submit_button("💾 AGGIORNA E RISALVA"):
+            # Ricalcolo il rating con i nuovi dati modificati
+            nuovo_rat = calcola_rating_empirico(nuovo_pr, nuovo_gl, nuovo_mi, gio['Data di nascita'], nuovo_ru, nuovo_gi, nuovo_ro)
+            
+            # Aggiorniamo la riga nel Database
+            st.session_state['players_db'].iloc[idx] = [
+                nuova_sq, nuovo_cog, nuovo_nom, nuovo_ru, gio['Data di nascita'], 
+                nuovo_pr, nuovo_mi, nuovo_gl, gio['Fatica'], nuovo_gi, nuovo_ro, nuovo_rat, nuovo_nt
+            ]
+            
+            salva_dati(st.session_state['players_db'])
+            st.success("Scheda aggiornata!")
+            st.session_state['view'] = 'dashboard'
+            st.rerun()
 
 elif st.session_state['view'] == 'stats':
-    st.subheader("📊 Analisi Performance")
     if not st.session_state['players_db'].empty:
         df = st.session_state['players_db']
-        # Grafici
-        fig_pie = px.pie(df, names='Ruolo', title="Distribuzione Ruoli in Rosa", hole=0.3)
-        st.plotly_chart(fig_pie, use_container_width=True)
-        
-        fig_bar = px.bar(df, x='', y='Rating', color='Squadra', 
-                         title="Classifica Valore Empirico (Rating)", text_auto=True)
-        st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.info("Aggiungi giocatori per generare i grafici.")
-
-        # --- SEZIONE CANCELLAZIONE SICURA ---
-        st.divider()
-        st.warning("⚠️ **Zona di Pericolo**")
-        
-        # Primo passaggio: Checkbox di sblocco
-        conferma_sblocco = st.checkbox("Voglio abilitare la cancellazione totale dei dati")
-        
-        if conferma_sblocco:
-            # Secondo passaggio: Pulsante rosso che appare solo se il checkbox è attivo
-            st.error("Attenzione: questa operazione è irreversibile!")
-
-            if st.button("🗑️ SVUOTA DEFINITIVAMENTE IL DATABASE"):
-                # Svuota memoria
-                st.session_state['players_db'] = pd.DataFrame(columns=st.session_state['players_db'].columns)
-                
-                # --- NOVITÀ: Svuota file fisico ---
-                salva_dati(st.session_state['players_db'])
-                
-                st.success("Database azzerato.")
-                st.rerun()
-
+        st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
+        st.plotly_chart(px.bar(df, x='Cognome', y='Rating', color='Squadra'), use_container_width=True)
