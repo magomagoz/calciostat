@@ -124,7 +124,7 @@ st.divider()
 
 # --- LOGICA DELLA PAGINA ELENCO (DASHBOARD) ---
 if st.session_state['view'] == 'dashboard':
-    st.subheader("📋 Elenco Completo Giocatori nel Database")
+    st.subheader("📋 Elenco Completo Giocatori")
     
     if not st.session_state['players_db'].empty:
         # Visualizzazione tabella con possibilità di ordinamento cliccando sulle colonne
@@ -242,7 +242,7 @@ elif st.session_state['view'] == 'stats':
         fig_pie = px.pie(df, names='Ruolo', title="Distribuzione Ruoli in Rosa", hole=0.3)
         st.plotly_chart(fig_pie, use_container_width=True)
         
-        fig_bar = px.bar(df, x='Cognome', y='Rating', color='Squadra', 
+        fig_bar = px.bar(df, x='', y='Rating', color='Squadra', 
                          title="Classifica Valore Empirico (Rating)", text_auto=True)
         st.plotly_chart(fig_bar, use_container_width=True)
     else:
