@@ -40,36 +40,43 @@ if not st.session_state['logged_in']:
     u = st.text_input("User")
     p = st.text_input("Pass", type="password")
     if st.button("Entra", use_container_width=True):
-        if u == "admin" and p == "scout2026":
+        if u == "Marco" and p == "Scout2026":
             st.session_state['logged_in'] = True
             st.rerun()
         else:
             st.error("Credenziali errate")
     st.stop()
 
-# --- FUNZIONE CALCOLO RATING AUTOMATICO ---
-def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo):
+# --- FUNZIONE CALCOLO RATING AUTOMATICO AGGIORNATA ---
+def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, rossi):
     # Punto di partenza richiesto
     rating = 5.0
     
     # Bonus Gol differenziato per Ruolo
     if ruolo == "D":
-        rating += (gol * 0.5)  # Un difensore che segna è raro
+        rating += (gol * 0.8)  # Un difensore che segna è raro
     elif ruolo == "C":
-        rating += (gol * 0.3)
+        rating += (gol * 0.5)
     else:
         rating += (gol * 0.2)  # Attaccanti
         
     # Bonus Esperienza e Minutaggio
-    rating += (presenze // 3) * 0.1   # 0.1 punti ogni 3 presenze
-    rating += (minuti // 200) * 0.1   # 0.1 punti ogni 200 minuti
+    rating += (presenze // 3) * 0.2    # 0.2 punti ogni 3 presenze
+    rating += (minuti // 200) * 0.33   # 0.33 punti ogni 200 minuti
     
     # Bonus Età (Potenziale giovani)
     anno_nascita = data_nascita.year
-    if anno_nascita >= 2010: rating += 0.5
-    elif anno_nascita == 2009: rating += 0.2
+    if anno_nascita >= 2010: 
+        rating += 0.5
+    elif anno_nascita == 2009: 
+        rating += 0.2
+
+    # --- AGGIUNTA MALUS DISCIPLINARI ---
+    rating -= (gialli * 0.3)  # -0.3 per ogni ammonizione
+    rating -= (rossi * 0.75)   # -0.75 per ogni espulsione
         
-    return round(min(rating, 10.0), 1)
+    # Il rating non può scendere sotto l'1.0 e non può superare il 10.0
+    return round(max(min(rating, 10.0), 1.0), 1)
 
 # --- NAVBAR AGGIORNATA ---
 st.title("⚽ Scouting Intelligence System")
