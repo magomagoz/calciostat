@@ -212,4 +212,4 @@ elif st.session_state['view'] == 'stats':
     if not st.session_state['players_db'].empty:
         df = st.session_state['players_db']
         st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
-        st.plotly_chart(px.bar(df, x='Cognome', y='Rating', color='Squadra'), use_container_width=True)
+        st.plotly_chart(px.bar(df, x='Calciatore', y='Rating', color='Squadra'), use_container_width=True)
