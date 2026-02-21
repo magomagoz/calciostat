@@ -145,6 +145,34 @@ with c4:
 st.divider()
 
 # --- LOGICA PAGINE ---
+if st.session_state['view'] == 'campionato':
+    st.subheader("🏆 Selezione Girone")
+    lista_g = list(GIRONI_SQUADRE.keys())
+    st.session_state['camp_scelto'] = st.selectbox("Scegli girone:", lista_g, index=lista_g.index(st.session_state['camp_scelto']))
+    if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
+
+elif st.session_state['view'] == 'dashboard':
+    st.subheader(f"📋 Elenco - {st.session_state['camp_scelto']}")
+    df = st.session_state['players_db']
+    if not df.empty:
+        st.dataframe(df.sort_values(by="Rating", ascending=False), use_container_width=True, hide_index=True)
+        
+        st.divider()
+        nomi = df.apply(lambda x: f"{x['Cognome']} {x['Nome']} ({x['Squadra']})", axis=1).tolist()
+        mod = st.selectbox("Seleziona giocatore da modificare:", ["-- Seleziona --"] + nomi)
+        if mod != "-- Seleziona --":
+            if st.button("📝 Modifica Dati"):
+                st.session_state['editing_index'] = nomi.index(mod)
+                st.session_state['view'] = 'modifica'; st.rerun()
+        
+        st.divider()
+        check = st.checkbox("Abilita cancellazione totale")
+        if check and st.button("🗑️ SVUOTA DB"):
+            st.session_state['players_db'] = pd.DataFrame(columns=df.columns)
+            salva_dati(st.session_state['players_db'])
+            st.rerun()
+    else:
+        st.info("DB Vuoto.")
 
 if st.session_state['view'] == 'aggiungi':
     st.subheader("➕ Nuovo Calciatore")
@@ -168,6 +196,59 @@ if st.session_state['view'] == 'aggiungi':
             st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
             salva_giocatori(st.session_state['players_db'])
             st.session_state['view'] = 'dashboard'; st.rerun()
+
+elif st.session_state['view'] == 'modifica':
+    idx = st.session_state['editing_index']
+    gio = st.session_state['players_db'].iloc[idx]
+    
+    st.subheader(f"📝 Modifica Scheda: {gio['Cognome']} {gio['Nome']}")
+    
+    if st.button("⬅️ Annulla e torna indietro"):
+        st.session_state['view'] = 'dashboard'
+        st.rerun()
+
+    with st.form("edit_form_completo"):
+        squadre_attuali = GIRONI_SQUADRE[st.session_state['camp_scelto']]
+        
+        c1, c2 = st.columns(2)
+        # Cerchiamo di preselezionare la squadra corretta
+        try:
+            sq_idx = squadre_attuali.index(gio['Squadra'])
+        except:
+            sq_idx = 0
+            
+        nuova_sq = c1.selectbox("Squadra", squadre_attuali, index=sq_idx)
+        nuovo_ru = c2.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"], 
+                                index=["Portiere", "Difensori", "Centrocampista", "Attaccante"].index(gio['Ruolo']))
+        
+        nuovo_cog = st.text_input("Cognome", value=gio['Cognome'])
+        nuovo_nom = st.text_input("Nome", value=gio['Nome'])
+        
+        c3, c4, c5 = st.columns(3)
+        nuovo_pr = c3.number_input("Presenze", value=int(gio['Presenze']))
+        nuovo_mi = c4.number_input("Minuti", value=int(gio['Minutaggio']))
+        nuovo_gl = c5.number_input("Gol", value=int(gio['Gol']))
+        
+        c6, c7 = st.columns(2)
+        nuovo_gi = c6.number_input("Gialli", value=int(gio['Gialli']))
+        nuovo_ro = c7.number_input("Rossi", value=int(gio['Rossi']))
+        
+        nuovo_nt = st.text_area("Note", value=gio['Note'])
+        
+        if st.form_submit_button("💾 AGGIORNA E RISALVA"):
+            # Ricalcolo il rating con i nuovi dati modificati
+            nuovo_rat = calcola_rating_empirico(nuovo_pr, nuovo_gl, nuovo_mi, gio['Data di nascita'], nuovo_ru, nuovo_gi, nuovo_ro)
+            
+            # Aggiorniamo la riga nel Database
+            st.session_state['players_db'].iloc[idx] = [
+                nuova_sq, nuovo_cog, nuovo_nom, nuovo_ru, gio['Data di nascita'], 
+                nuovo_pr, nuovo_mi, nuovo_gl, gio['Fatica'], nuovo_gi, nuovo_ro, nuovo_rat, nuovo_nt
+            ]
+            
+            salva_dati(st.session_state['players_db'])
+            st.success("Scheda aggiornata!")
+            st.session_state['view'] = 'dashboard'
+            st.rerun()
 
 # --- LOGICA DASHBOARD AGGIORNATA ---
 if st.session_state['view'] == 'dashboard':
@@ -292,6 +373,13 @@ if st.session_state['view'] == 'dashboard':
         st.info("Il database giocatori è vuoto. Aggiungi un calciatore per iniziare.")
 
 elif st.session_state['view'] == 'stats':
+    st.subheader("✨ Analisi Rating AI")
+    
+    if not st.session_state['players_db'].empty:
+        df = st.session_state['players_db']
+        st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
+        st.plotly_chart(px.bar(df, x='', y='Rating', color='Squadra'), use_container_width=True)
+    
     st.subheader("📊 Analisi Storica Fatica")
     df_p = st.session_state['players_db']
     df_f = st.session_state['fatica_db']
