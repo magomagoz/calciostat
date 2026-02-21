@@ -151,29 +151,6 @@ if st.session_state['view'] == 'campionato':
     st.session_state['camp_scelto'] = st.selectbox("Scegli girone:", lista_g, index=lista_g.index(st.session_state['camp_scelto']))
     if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
 
-elif st.session_state['view'] == 'dashboard':
-    st.subheader(f"📋 Elenco - {st.session_state['camp_scelto']}")
-    df = st.session_state['players_db']
-    if not df.empty:
-        st.dataframe(df.sort_values(by="Rating", ascending=False), use_container_width=True, hide_index=True)
-        
-        st.divider()
-        nomi = df.apply(lambda x: f"{x['Cognome']} {x['Nome']} ({x['Squadra']})", axis=1).tolist()
-        mod = st.selectbox("Seleziona giocatore da modificare:", ["-- Seleziona --"] + nomi)
-        if mod != "-- Seleziona --":
-            if st.button("📝 Modifica Dati"):
-                st.session_state['editing_index'] = nomi.index(mod)
-                st.session_state['view'] = 'modifica'; st.rerun()
-        
-        st.divider()
-        check = st.checkbox("Abilita cancellazione totale")
-        if check and st.button("🗑️ SVUOTA DB"):
-            st.session_state['players_db'] = pd.DataFrame(columns=df.columns)
-            salva_dati(st.session_state['players_db'])
-            st.rerun()
-    else:
-        st.info("DB Vuoto.")
-
 if st.session_state['view'] == 'aggiungi':
     st.subheader("➕ Nuovo Calciatore")
     squadre = GIRONI_SQUADRE[st.session_state['camp_scelto']]
@@ -245,7 +222,7 @@ elif st.session_state['view'] == 'modifica':
                 nuovo_pr, nuovo_mi, nuovo_gl, gio['Fatica'], nuovo_gi, nuovo_ro, nuovo_rat, nuovo_nt
             ]
             
-            salva_dati(st.session_state['players_db'])
+            salva_giocatori(st.session_state['players_db'])
             st.success("Scheda aggiornata!")
             st.session_state['view'] = 'dashboard'
             st.rerun()
@@ -256,13 +233,27 @@ if st.session_state['view'] == 'dashboard':
     
     # 1. TABELLA GIOCATORI
     if not st.session_state['players_db'].empty:
-        st.write("### 👥 Tabella Giocatori")
+        st.write("### 👥 Tabella Calciatori")
         st.dataframe(
             st.session_state['players_db'].sort_values(by="Rating", ascending=False), 
             use_container_width=True, 
             hide_index=True
         )
+        # Inserisci questo pezzo subito dopo st.dataframe(...) della Tabella Giocatori
+        nomi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']} ({x['Squadra']})", axis=1).tolist()
+        mod = st.selectbox("Seleziona calciatore da modificare:", ["-- Seleziona --"] + nomi)
+        if mod != "-- Seleziona --":
+            if st.button("📝 Modifica Dati"):
+                st.session_state['editing_index'] = nomi.index(mod)
+                st.session_state['view'] = 'modifica'
+                st.rerun()
         
+        check = st.checkbox("Abilita cancellazione totale")
+        if check and st.button("🗑️ SVUOTA DB CALCIATORI"):
+            st.session_state['players_db'] = pd.DataFrame(columns=df_p.columns)
+            salva_giocatori(st.session_state['players_db'])
+            st.rerun()
+
         st.divider()
 
         # 2. MODULO NUOVA FATICA
@@ -378,7 +369,7 @@ elif st.session_state['view'] == 'stats':
     if not st.session_state['players_db'].empty:
         df = st.session_state['players_db']
         st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
-        st.plotly_chart(px.bar(df, x='', y='Rating', color='Squadra'), use_container_width=True)
+        st.plotly_chart(px.bar(df, x='Calciatore', y='Rating', color='Squadra'), use_container_width=True)
     
     st.subheader("📊 Analisi Storica Fatica")
     df_p = st.session_state['players_db']
@@ -410,7 +401,7 @@ elif st.session_state['view'] == 'stats':
             df_filtrato['Voto_Num'] = pd.to_numeric(df_filtrato['Fatica'], errors='coerce')
             # Rimuovi le righe senza voto numerico prima di calcolare la classifica
             medie_periodo = df_filtrato.dropna(subset=['Voto_Num']).groupby('Cognome')['Voto_Num'].mean().reset_index()
-            medie_periodo.columns = ['Giocatore', 'Media Voto nel Periodo']
+            medie_periodo.columns = ['Calciatore', 'Media Voto nel Periodo']
             
             # Visualizzazione Risultati
             c_graf, c_tab = st.columns([2, 1])
