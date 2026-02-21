@@ -91,8 +91,8 @@ if 'logged_in' not in st.session_state:
 if 'skip_upload' not in st.session_state:
     st.session_state['skip_upload'] = False
 
-    st.session_state['players_db'] = p
-    st.session_state['fatica_db'] = f
+    #st.session_state['players_db'] = p
+    #st.session_state['fatica_db'] = f
 
 if 'view' not in st.session_state: st.session_state['view'] = 'dashboard'
 if 'camp_scelto' not in st.session_state: st.session_state['camp_scelto'] = list(GIRONI_SQUADRE.keys())[0]
