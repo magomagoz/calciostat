@@ -91,9 +91,6 @@ if 'logged_in' not in st.session_state:
 if 'skip_upload' not in st.session_state:
     st.session_state['skip_upload'] = False
 
-    #st.session_state['players_db'] = p
-    #st.session_state['fatica_db'] = f
-
 if 'view' not in st.session_state: st.session_state['view'] = 'dashboard'
 if 'camp_scelto' not in st.session_state: st.session_state['camp_scelto'] = list(GIRONI_SQUADRE.keys())[0]
 if 'editing_index' not in st.session_state: st.session_state['editing_index'] = None
@@ -191,7 +188,6 @@ if st.session_state['view'] == 'dashboard':
         st.subheader("🏃 Inserimento Sessione Fatica")
         with st.container():
             df_p = st.session_state['players_db']
-            # Creiamo una lista "Cognome Nome" per il selettore
             nomi_completi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']}", axis=1).tolist()
             
             c1, c2 = st.columns([2, 1])
@@ -200,15 +196,14 @@ if st.session_state['view'] == 'dashboard':
             with c2:
                 data_f = st.date_input("Data sessione:", value=date.today())
             
-            with n_col:
-                nota_f = st.text_input("Note/Assenze:", placeholder="es: Lavoro differenziato")
-
             c_tipo = st.radio("Stato sessione:", ["Presente", "Assente"], horizontal=True)
             
             if c_tipo == "Presente":
-                fatica_v = st.slider("Voto/Fatica:", 0.0, 10.0, 6.0, step=0.5)
+                fatica_v = st.slider("Voto/Fatica (0-10):", 0.0, 10.0, 6.0, step=0.5)
             else:
-                fatica_v = "ass" # Salviamo come stringa proprio come nel tuo Excel
+                fatica_v = "ass" 
+
+            nota_f = st.text_input("Note aggiuntive:", placeholder="es: Lavoro differenziato")
 
             if st.button("💾 REGISTRA VALORE FATICA", use_container_width=True):
                 nuova_riga = pd.DataFrame({
