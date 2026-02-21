@@ -181,26 +181,26 @@ elif st.session_state['view'] == 'dashboard':
             use_container_width=True
         )
 
-# --- SEZIONE IMPORTA ---
-st.subheader("📤 Importa Dati")
-uploaded_file = st.file_uploader("Scegli un file CSV da caricare nel database", type="csv")
-        
-if uploaded_file is not None:
-    if st.button("🚀 CARICA E UNISCI AL DATABASE"):
-        try:
-            # Leggiamo il file caricato
-            import_df = pd.read_csv(uploaded_file)
-                    
-            # Uniamo i dati nuovi a quelli esistenti
-            st.session_state['players_db'] = pd.concat([st.session_state['players_db'], import_df], ignore_index=True)
-                    
-            # Salviamo fisicamente sul file locale
-            salva_dati(st.session_state['players_db'])
-                    
-            st.success(f"Importati correttamente {len(import_df)} giocatori!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Errore durante il caricamento: {e}")
+    # --- SEZIONE IMPORTA ---
+    st.subheader("📤 Importa Dati")
+    uploaded_file = st.file_uploader("Scegli un file CSV da caricare nel database", type="csv")
+            
+    if uploaded_file is not None:
+        if st.button("🚀 CARICA E UNISCI AL DATABASE"):
+            try:
+                # Leggiamo il file caricato
+                import_df = pd.read_csv(uploaded_file)
+                        
+                # Uniamo i dati nuovi a quelli esistenti
+                st.session_state['players_db'] = pd.concat([st.session_state['players_db'], import_df], ignore_index=True)
+                        
+                # Salviamo fisicamente sul file locale
+                salva_dati(st.session_state['players_db'])
+                        
+                st.success(f"Importati correttamente {len(import_df)} giocatori!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Errore durante il caricamento: {e}")
         
         st.divider()
         check = st.checkbox("🗑️ Abilita cancellazione totale")
@@ -296,7 +296,7 @@ elif st.session_state['view'] == 'stats':
     if not st.session_state['players_db'].empty:
         df = st.session_state['players_db']
         st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
-        st.plotly_chart(px.bar(df, x='Cognome', y='Rating', color='Squadra'), use_container_width=True)
+        st.plotly_chart(px.bar(df, x=' ', y='Rating', color='Squadra'), use_container_width=True)
 
 elif st.session_state['view'] == 'stats':
     st.subheader("📊 Analisi Storica Fatica")
