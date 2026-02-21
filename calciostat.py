@@ -126,7 +126,7 @@ elif st.session_state['view'] == 'dashboard':
         csv = df.to_csv(index=False).encode('utf-8')
         
         st.download_button(
-            label="💾 Scarica DB CSV",
+            label="💾 Salva lista giocatori",
             data=csv,
             file_name=f"scouting_{st.session_state['camp_scelto']}.csv",
             mime="text/csv",
@@ -155,8 +155,8 @@ elif st.session_state['view'] == 'dashboard':
                 st.error(f"Errore durante il caricamento: {e}")
         
         st.divider()
-        check = st.checkbox("Abilita cancellazione totale")
-        if check and st.button("🗑️ SVUOTA DB"):
+        check = st.checkbox("🗑️ Abilita cancellazione totale")
+        if check and st.button("🗑️ ATTENZIONE: CANCELLA TUTTO"):
             st.session_state['players_db'] = pd.DataFrame(columns=df.columns)
             salva_dati(st.session_state['players_db'])
             st.rerun()
