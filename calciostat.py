@@ -129,7 +129,14 @@ if st.session_state['view'] == 'dashboard':
                 fatica_v = st.slider("Livello Fatica (0-100):", 0, 100, 50)
             with n_col:
                 nota_f = st.text_input("Note/Assenze:", placeholder="es: Lavoro differenziato")
+
+            c_tipo = st.radio("Stato sessione:", ["Presente", "Assente"], horizontal=True)
             
+            if c_tipo == "Presente":
+                fatica_v = st.slider("Voto/Fatica:", 0.0, 10.0, 6.0, step=0.5)
+            else:
+                fatica_v = "ass" # Salviamo come stringa proprio come nel tuo Excel
+
             if st.button("💾 REGISTRA VALORE FATICA", use_container_width=True):
                 nuova_riga = pd.DataFrame({
                     "ID_Giocatore": [nomi_completi.index(scelta)],
