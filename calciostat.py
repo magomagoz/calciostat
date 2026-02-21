@@ -153,47 +153,45 @@ if st.session_state['view'] == 'dashboard':
 
         st.divider()
 
-        # 3. TABELLA FATICA (VISUALIZZAZIONE EXCEL PIVOT)
+        # 3. TABELLA FATICA (STILE EXCEL CON MEDIA FINALE)
         st.subheader("📅 Tabella Presenze e Valutazioni (Stile Excel)")
         if not st.session_state['fatica_db'].empty:
             df_f = st.session_state['fatica_db'].copy()
 
-            # Creiamo la tabella Pivot: Date sulle righe, Giocatori sulle colonne
-            # fillna("") serve per lasciare vuoto dove non c'è allenamento
+            # Creiamo la tabella Pivot
             pivot_df = df_f.pivot_table(
                 index='Data', 
                 columns='Cognome', 
                 values='Fatica', 
                 aggfunc='first'
-            ).fillna("-")
+            )
 
-            # Ordiniamo le date in modo che l'ultima sia sempre in alto
-            pivot_df = pivot_df.sort_index(ascending=False)
+            # Calcoliamo la media per ogni colonna (ignorando "ass")
+            def calcola_media(colonna):
+                numerici = pd.to_numeric(colonna, errors='coerce').dropna()
+                return numerici.mean() if not numerici.empty else 0
 
-            # Funzione per colorare le celle (Verde se voto alto, Rosso basso, Grigio ASS)
+            medie = pivot_df.apply(calcola_media)
+            
+            # Aggiungiamo la riga MEDIA in fondo
+            pivot_df.loc['--- MEDIA ---'] = medie
+            
+            # Riordiniamo: Media in alto (o in basso), qui la mettiamo in alto per comodità
+            pivot_df = pivot_df.fillna("-")
+
+            # Funzione colore (aggiornata per gestire la riga media)
             def color_voti(val):
-                if val == "ass":
-                    return 'background-color: #d3d3d3; color: black;' # Grigio per assenti
+                if val == "ass" or val == "-": return 'color: #777777;' 
                 try:
                     voto = float(val)
-                    if voto >= 7: return 'background-color: #228b22; color: white;' # Verde scuro
-                    if voto >= 6: return 'background-color: #90ee90; color: black;' # Verde chiaro
-                    if voto >= 5: return 'background-color: #ffffe0; color: black;' # Giallo
-                    return 'background-color: #ffcccb; color: black;' # Rosso
-                except:
-                    return ''
+                    if voto >= 7: return 'background-color: #228b22; color: white;'
+                    if voto >= 6: return 'background-color: #90ee90; color: black;'
+                    if voto >= 5: return 'background-color: #ffffe0; color: black;'
+                    return 'background-color: #ffcccb; color: black;'
+                except: return ''
 
-            # Visualizzazione con stile applicato
-            try:
-                st.dataframe(
-                    pivot_df.style.applymap(color_voti),
-                    use_container_width=True
-                )
-            except:
-                # Fallback se lo stile dà problemi
-                st.dataframe(pivot_df, use_container_width=True)
-            
-            st.caption("Legenda: Verde (Ottimo), Giallo (Sufficiente), Rosso (Affaticato), Grigio (Assente)")
+            st.dataframe(pivot_df.style.applymap(color_voti).format(precision=1), use_container_width=True)
+
 
 
         # 4. TASTI ESPORTAZIONE (A FIANCO)
@@ -212,12 +210,49 @@ if st.session_state['view'] == 'dashboard':
     else:
         st.info("Il database giocatori è vuoto. Aggiungi un calciatore per iniziare.")
 
-# --- STATISTICHE ---
 elif st.session_state['view'] == 'stats':
-    st.subheader("📊 Analisi Dati")
+    st.subheader("📊 Analisi Carichi di Lavoro")
+    
     if not st.session_state['fatica_db'].empty:
-        st.write("### Andamento Fatica nel Tempo")
-        fig = px.line(st.session_state['fatica_db'], x="Data", y="Fatica", color="Cognome", markers=True)
-        st.plotly_chart(fig, use_container_width=True)
+        df_stats = st.session_state['fatica_db'].copy()
+        df_stats['Data'] = pd.to_datetime(df_stats['Data']).dt.date
+        
+        # --- FILTRO DATE ---
+        st.write("### 📅 Seleziona Periodo")
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            data_inizio = st.date_input("Dalla data:", df_stats['Data'].min())
+        with col_d2:
+            data_fine = st.date_input("Alla data:", date.today())
+        
+        # Filtraggio del dataframe
+        mask = (df_stats['Data'] >= data_inizio) & (df_stats['Data'] <= data_fine)
+        df_filtrato = df_stats.loc[mask].copy()
+        
+        if not df_filtrato.empty:
+            # Calcolo medie nel periodo selezionato
+            df_filtrato['Voto_Num'] = pd.to_numeric(df_filtrato['Fatica'], errors='coerce')
+            medie_periodo = df_filtrato.groupby('Cognome')['Voto_Num'].mean().sort_values(ascending=False).reset_index()
+            medie_periodo.columns = ['Giocatore', 'Media Voto nel Periodo']
+            
+            # Visualizzazione Risultati
+            c_graf, c_tab = st.columns([2, 1])
+            
+            with c_graf:
+                st.write(f"**Andamento dal {data_inizio} al {data_fine}**")
+                fig = px.line(df_filtrato.dropna(subset=['Voto_Num']), 
+                             x="Data", y="Voto_Num", color="Cognome", markers=True,
+                             labels={"Voto_Num": "Valutazione Fatica"})
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with c_tab:
+                st.write("**Classifica Medie**")
+                st.dataframe(medie_periodo.style.background_gradient(cmap='RdYlGn', subset=['Media Voto nel Periodo']), 
+                             hide_index=True, use_container_width=True)
+                
+            # Numero allenamenti fatti nel periodo
+            st.info(f"💡 In questo periodo sono state registrate {df_filtrato['Data'].nunique()} sessioni di allenamento.")
+        else:
+            st.warning("Nessun dato trovato per il periodo selezionato.")
     else:
-        st.warning("Nessun dato di fatica registrato.")
+        st.info("Registra dei dati nella Dashboard per vedere le statistiche.")
