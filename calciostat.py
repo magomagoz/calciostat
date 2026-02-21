@@ -72,7 +72,7 @@ if 'logged_in' not in st.session_state:
 
 # --- LOGIN ---
 if not st.session_state['logged_in']:
-    st.title("🔐 Login Scouting")
+    st.title("🔐 Login")
     u = st.text_input("User")
     p = st.text_input("Pass", type="password")
     if st.button("Entra", use_container_width=True):
