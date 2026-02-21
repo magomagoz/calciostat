@@ -43,20 +43,20 @@ def salva_dati(df):
 
 def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, rossi):
     rating = 5.0
-    if ruolo == "Difensori": rating += (gol * 0.8)
-    elif ruolo == "Centrocampista": rating += (gol * 0.5)
+    if ruolo == "Difensori": rating += (gol * 0.5)
+    elif ruolo == "Centrocampista": rating += (gol * 0.3)
     else: rating += (gol * 0.2)
     
-    rating += (presenze // 3) * 0.2
-    rating += (minuti // 200) * 0.33
+    rating += (presenze // 3) * 0.1
+    rating += (minuti // 180) * 0.2
     
     anno = data_nascita.year
-    if anno >= 2010: rating += 0.5
-    elif anno == 2009: rating += 0.2
+    if anno >= 2011: rating += 0.5
+    elif anno == 2010: rating += 0.2
 
     rating -= (gialli * 0.3)
     rating -= (rossi * 0.75)
-    return round(max(min(rating, 10.0), 1.0), 1)
+    return round(max(min(rating, 10.0), 0.0), 1)
 
 # --- INIZIALIZZAZIONE ---
 if 'players_db' not in st.session_state:
