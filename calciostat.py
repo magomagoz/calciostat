@@ -97,40 +97,74 @@ with c4:
 st.divider()
 
 # --- LOGICA DASHBOARD ---
-if st.session_state['view'] == 'dashboard':
-    st.subheader("📋 Gestione Database")
+# --- LOGICA DASHBOARD AGGIORNATA ---
+elif st.session_state['view'] == 'dashboard':
+    st.subheader(f"📋 Gestione Database - {st.session_state.get('camp_scelto', 'U17')}")
     
-    # 1. VISUALIZZAZIONE TABELLA GIOCATORI
+    # 1. TABELLA GIOCATORI
     if not st.session_state['players_db'].empty:
-        st.write("### Lista Giocatori")
-        st.dataframe(st.session_state['players_db'], use_container_width=True, hide_index=True)
+        st.write("### 👥 Elenco Anagrafica Giocatori")
+        st.dataframe(
+            st.session_state['players_db'].sort_values(by="Rating", ascending=False), 
+            use_container_width=True, 
+            hide_index=True
+        )
         
-        # 2. REGISTRAZIONE FATICA (FILE SEPARATO)
         st.divider()
-        st.subheader("🏃 Registrazione Fatica")
-        with st.expander("Apri modulo inserimento fatica"):
+
+        # 2. MODULO NUOVA FATICA
+        st.subheader("🏃 Inserimento Sessione Fatica")
+        with st.container():
             df_p = st.session_state['players_db']
-            nomi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']}", axis=1).tolist()
-            scelta = st.selectbox("Calciatore", nomi)
-            data_f = st.date_input("Data", value=date.today())
-            fatica_v = st.slider("Livello Fatica", 0, 100, 50)
-            nota_f = st.text_input("Note (es: Assente)")
+            # Creiamo una lista "Cognome Nome" per il selettore
+            nomi_completi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']}", axis=1).tolist()
             
-            if st.button("💾 REGISTRA FATICA (Salva su file Fatica)"):
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                scelta = st.selectbox("Seleziona il calciatore:", nomi_completi)
+            with c2:
+                data_f = st.date_input("Data sessione:", value=date.today())
+            
+            f_col, n_col = st.columns([2, 2])
+            with f_col:
+                fatica_v = st.slider("Livello Fatica (0-100):", 0, 100, 50)
+            with n_col:
+                nota_f = st.text_input("Note/Assenze:", placeholder="es: Lavoro differenziato")
+            
+            if st.button("💾 REGISTRA VALORE FATICA", use_container_width=True):
                 nuova_riga = pd.DataFrame({
-                    "ID_Giocatore": [nomi.index(scelta)],
+                    "ID_Giocatore": [nomi_completi.index(scelta)],
                     "Cognome": [scelta.split()[0]],
+                    "Nome": [scelta.split()[1] if len(scelta.split()) > 1 else ""],
                     "Data": [data_f],
                     "Fatica": [fatica_v],
                     "Note": [nota_f]
                 })
                 st.session_state['fatica_db'] = pd.concat([st.session_state['fatica_db'], nuova_riga], ignore_index=True)
                 salva_fatica(st.session_state['fatica_db'])
-                st.success(f"Fatica registrata per {scelta} nel file separato!")
-        
-        # 3. PULSANTI EXPORT SEPARATI (A FIANCO)
+                st.success(f"Dato registrato per {scelta}!")
+                st.rerun()
+
         st.divider()
-        st.subheader("📥 Esportazione File")
+
+        # 3. TABELLA FATICA COMPILATA FINORA
+        st.subheader("📅 Registro Storico Fatica")
+        if not st.session_state['fatica_db'].empty:
+            # Ordiniamo per data decrescente per vedere subito gli ultimi inserimenti
+            df_fatica_vis = st.session_state['fatica_db'].sort_values(by="Data", ascending=False)
+            
+            # Applichiamo un gradiente di colore per rendere la tabella simile a un semaforo
+            st.dataframe(
+                df_fatica_vis.style.background_gradient(subset=['Fatica'], cmap='RdYlGn_r', vmin=0, vmax=100),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Nessun dato di fatica registrato oggi.")
+
+        # 4. TASTI ESPORTAZIONE (A FIANCO)
+        st.divider()
+        st.subheader("📥 Esporta Dati in CSV")
         col_ex1, col_ex2 = st.columns(2)
         
         with col_ex1:
@@ -139,10 +173,10 @@ if st.session_state['view'] == 'dashboard':
             
         with col_ex2:
             csv_f = st.session_state['fatica_db'].to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Scarica Storico Fatica", csv_f, "storico_fatica.csv", "text/csv", use_container_width=True)
+            st.download_button("📥 Scarica Registro Fatica", csv_f, "storico_fatica.csv", "text/csv", use_container_width=True)
 
     else:
-        st.info("Database vuoto.")
+        st.info("Il database giocatori è vuoto. Aggiungi un calciatore per iniziare.")
 
 # --- STATISTICHE ---
 elif st.session_state['view'] == 'stats':
