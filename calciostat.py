@@ -61,6 +61,9 @@ def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, 
     return round(max(min(rating, 10.0), 0.0), 1)
 
 # --- INIZIALIZZAZIONE ---
+if 'skip_upload' not in st.session_state:
+    st.session_state['skip_upload'] = False
+
 if 'players_db' not in st.session_state or 'fatica_db' not in st.session_state:
     p, f = carica_dati_relazionali()
     st.session_state['players_db'] = p
@@ -83,6 +86,41 @@ if not st.session_state['logged_in']:
         else:
             st.error("Credenziali errate")
     st.stop()
+
+# --- LOGICA DI NAVIGAZIONE POST-LOGIN ---
+if st.session_state['logged_in']:
+    # Se il database è vuoto e non abbiamo ancora scelto cosa fare, mostra l'upload iniziale
+    if st.session_state['players_db'].empty and st.session_state.get('skip_upload') is not True:
+        st.title("👋 Benvenuto nel Sistema Scouting")
+        st.info("Il database attuale è vuoto. Desideri caricare un backup o iniziare una nuova sessione?")
+        
+        col_up, col_new = st.columns(2)
+        
+        with col_up:
+            st.subheader("📤 Carica Backup")
+            uploaded_initial = st.file_uploader("Trascina qui il tuo file .csv", type="csv", key="initial_upload")
+            if uploaded_initial:
+                try:
+                    import_df = pd.read_csv(uploaded_initial)
+                    # Verifica colonne minime
+                    if "Cognome" in import_df.columns:
+                        st.session_state['players_db'] = import_df
+                        salva_tutto(st.session_state['players_db'], st.session_state['fatica_db'])
+                        st.success("Database caricato con successo!")
+                        st.rerun()
+                    else:
+                        st.error("Il file non sembra avere il formato corretto.")
+                except Exception as e:
+                    st.error(f"Errore: {e}")
+        
+        with col_new:
+            st.subheader("🆕 Nuova Sessione")
+            st.write("Inizia a inserire i dati manualmente da zero.")
+            if st.button("Inizia ora", use_container_width=True):
+                st.session_state['skip_upload'] = True
+                st.rerun()
+        
+        st.stop() # Blocca l'esecuzione qui finché non viene fatta una scelta
 
 # --- NAVBAR ---
 c1, c2, c3, c4 = st.columns(4)
@@ -141,21 +179,11 @@ elif st.session_state['view'] == 'dashboard':
 
         # --- EXPORT / IMPORT / RESET ---
         st.divider()
-        col_ex, col_im = st.columns(2)
-        with col_ex:
-            st.subheader("📥 Esporta")
-            csv = df_p.to_csv(index=False).encode('utf-8')
-            st.download_button("💾 Scarica CSV", csv, "database.csv", "text/csv", use_container_width=True)
+        st.subheader("📥 Esporta")
+        csv = df_p.to_csv(index=False).encode('utf-8')
+        st.download_button("💾 Scarica CSV", csv, "database.csv", "text/csv", use_container_width=True)
         
-        with col_im:
-            st.subheader("📤 Importa")
-            uploaded_file = st.file_uploader("Carica CSV", type="csv")
-            if uploaded_file and st.button("🚀 Carica"):
-                import_df = pd.read_csv(uploaded_file)
-                st.session_state['players_db'] = pd.concat([st.session_state['players_db'], import_df], ignore_index=True)
-                salva_tutto(st.session_state['players_db'], st.session_state['fatica_db'])
-                st.rerun()
-
+        
         st.divider()
         if st.checkbox("🗑️ Abilita cancellazione totale") and st.button("🔥🔥 CANCELLA TUTTO"):
             st.session_state['players_db'] = pd.DataFrame(columns=df_p.columns)
@@ -163,7 +191,7 @@ elif st.session_state['view'] == 'dashboard':
             salva_tutto(st.session_state['players_db'], st.session_state['fatica_db'])
             st.rerun()
     else:
-        st.info("DB Vuoto.")
+        st.info("Dati cancellati")
 
 elif st.session_state['view'] == 'aggiungi':
     st.subheader("➕ Nuovo Giocatore")
