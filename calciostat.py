@@ -301,8 +301,10 @@ elif st.session_state['view'] == 'stats':
         
         if not df_filtrato.empty:
             # Calcolo medie nel periodo selezionato
+            # All'interno di elif st.session_state['view'] == 'stats':
             df_filtrato['Voto_Num'] = pd.to_numeric(df_filtrato['Fatica'], errors='coerce')
-            medie_periodo = df_filtrato.groupby('Cognome')['Voto_Num'].mean().sort_values(ascending=False).reset_index()
+            # Rimuovi le righe senza voto numerico prima di calcolare la classifica
+            medie_periodo = df_filtrato.dropna(subset=['Voto_Num']).groupby('Cognome')['Voto_Num'].mean().reset_index()
             medie_periodo.columns = ['Giocatore', 'Media Voto nel Periodo']
             
             # Visualizzazione Risultati
