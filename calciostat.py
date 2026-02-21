@@ -29,6 +29,29 @@ GIRONI_SQUADRE = {
 DB_FILE = "database_scouting.csv"
 
 # --- FUNZIONI CORE ---
+DB_PLAYERS = "database_scouting.csv"
+DB_FATICA = "log_fatica.csv"
+
+def carica_dati_relazionali():
+    # Carica Giocatori
+    try:
+        df_p = pd.read_csv(DB_PLAYERS)
+    except:
+        df_p = pd.DataFrame(columns=["ID", "Squadra", "Cognome", "Nome", "Ruolo", "Rating"])
+    
+    # Carica Log Fatica
+    try:
+        df_f = pd.read_csv(DB_FATICA)
+        df_f['Data'] = pd.to_datetime(df_f['Data']).dt.date
+    except:
+        df_f = pd.DataFrame(columns=["ID_Giocatore", "Data", "Fatica", "Note"])
+    
+    return df_p, df_f
+
+def salva_tutto(df_p, df_f):
+    df_p.to_csv(DB_PLAYERS, index=False)
+    df_f.to_csv(DB_FATICA, index=False)
+
 def carica_dati():
     try:
         df = pd.read_csv(DB_FILE)
@@ -59,8 +82,10 @@ def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, 
     return round(max(min(rating, 10.0), 0.0), 1)
 
 # --- INIZIALIZZAZIONE ---
-if 'players_db' not in st.session_state:
-    st.session_state['players_db'] = carica_dati()
+if 'players_db' not in st.session_state or 'fatica_db' not in st.session_state:
+    p, f = carica_dati_relazionali()
+    st.session_state['players_db'] = p
+    st.session_state['fatica_db'] = f
 if 'view' not in st.session_state:
     st.session_state['view'] = 'dashboard'
 if 'camp_scelto' not in st.session_state:
@@ -118,6 +143,29 @@ elif st.session_state['view'] == 'dashboard':
                 st.session_state['editing_index'] = nomi.index(mod)
                 st.session_state['view'] = 'modifica'; st.rerun()
 
+elif st.session_state['view'] == 'dashboard':
+    st.subheader("🏃 Registrazione Fatica Giornaliera")
+    
+    df_p = st.session_state['players_db']
+    df_f = st.session_state['fatica_db']
+    
+    if not df_p.empty:
+        with st.expander("➕ Registra nuova sessione/fatica"):
+            nomi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']}", axis=1).tolist()
+            scelta = st.selectbox("Giocatore", nomi)
+            data_all = st.date_input("Data Allenamento", value=date.today())
+            livello_f = st.slider("Livello Fatica", 0, 100, 50)
+            nota_f = st.text_input("Nota (es. 'Assente', 'Lavoro Differenziato')")
+            
+            if st.button("Salva sessione"):
+                idx_giocatore = nomi.index(scelta)
+                # Usiamo l'indice o un ID per collegare le tabelle
+                nuovo_log = pd.DataFrame([[idx_giocatore, data_all, livello_f, nota_f]], 
+                                         columns=["ID_Giocatore", "Data", "Fatica", "Note"])
+                st.session_state['fatica_db'] = pd.concat([st.session_state['fatica_db'], nuovo_log], ignore_index=True)
+                salva_tutto(st.session_state['players_db'], st.session_state['fatica_db'])
+                st.success("Dati salvati nello storico!")
+        
         # --- SEZIONE ESPORTA ---
         st.write("---")
         st.subheader("📥 Esporta Dati")
@@ -249,3 +297,31 @@ elif st.session_state['view'] == 'stats':
         df = st.session_state['players_db']
         st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
         st.plotly_chart(px.bar(df, x='Cognome', y='Rating', color='Squadra'), use_container_width=True)
+
+elif st.session_state['view'] == 'stats':
+    st.subheader("📊 Analisi Storica Fatica")
+    df_p = st.session_state['players_db']
+    df_f = st.session_state['fatica_db']
+    
+    if not df_f.empty:
+        # Uniamo le tabelle per avere i nomi nel grafico
+        df_f['Cognome'] = df_f['ID_Giocatore'].apply(lambda x: df_p.iloc[int(x)]['Cognome'])
+        
+        # Grafico 1: Andamento temporale (Line Chart)
+        st.write("### 📈 Trend Fatica nel tempo")
+        giocatore_target = st.selectbox("Seleziona Giocatore per il dettaglio", df_p['Cognome'].unique())
+        df_player = df_f[df_f['Cognome'] == giocatore_target].sort_values(by="Data")
+        
+        fig_line = px.line(df_player, x="Data", y="Fatica", markers=True, 
+                           title=f"Evoluzione Fatica: {giocatore_target}")
+        st.plotly_chart(fig_line, use_container_width=True)
+        
+        # Grafico 2: Media Fatica Settimanale
+        st.write("### ⚖️ Carico Medio Lavoro")
+        media_f = df_f.groupby('Cognome')['Fatica'].mean().reset_index()
+        fig_bar = px.bar(media_f, x='Cognome', y='Fatica', color='Fatica',
+                         title="Media Fatica Totale (Chi è più sotto sforzo?)",
+                         color_continuous_scale='RdYlGn_r')
+        st.plotly_chart(fig_bar, use_container_width=True)
+    else:
+        st.info("Registra almeno una sessione per vedere i grafici.")
