@@ -221,48 +221,59 @@ if st.session_state['view'] == 'dashboard':
 
         st.divider()
 
-        # 3. TABELLA FATICA (STILE EXCEL CON MEDIA FINALE)
-        st.subheader("📅 Tabella Fatica")
+        # 3. TABELLA FATICA (GIOCATORI SULLE ORDINATE, DATE SULLE ASCISSE)
+        st.subheader("📅 Tabellone Presenze e Valutazioni")
         if not st.session_state['fatica_db'].empty:
             df_f = st.session_state['fatica_db'].copy()
 
-            # Creiamo la tabella Pivot
+            # 1. Formattiamo la data nel formato dd/mm/YYYY
+            df_f['Data'] = pd.to_datetime(df_f['Data']).dt.strftime('%d/%m/%Y')
+
+            # 2. Creiamo la Pivot invertita: 
+            # Index = Giocatori (Ordinate), Columns = Date (Ascisse)
             pivot_df = df_f.pivot_table(
-                index='Data', 
-                columns='Cognome', 
+                index='Cognome', 
+                columns='Data', 
                 values='Fatica', 
                 aggfunc='first'
             )
 
-            # Calcoliamo la media per ogni colonna (ignorando "ass")
-            def calcola_media(colonna):
-                numerici = pd.to_numeric(colonna, errors='coerce').dropna()
+            # 3. Calcoliamo la media per ogni giocatore (riga)
+            def calcola_media_riga(riga):
+                numerici = pd.to_numeric(riga, errors='coerce').dropna()
                 return numerici.mean() if not numerici.empty else 0
 
-            medie = pivot_df.apply(calcola_media)
-            
-            # Aggiungiamo la riga MEDIA in fondo
-            pivot_df.loc['--- MEDIA ---'] = medie
-            
-            # Riordiniamo: Media in alto (o in basso), qui la mettiamo in alto per comodità
-            pivot_df = pivot_df.fillna("-")
+            pivot_df['MEDIA'] = pivot_df.apply(calcola_media_riga, axis=1)
 
-            # Funzione colore (aggiornata per gestire la riga media)
-            # Funzione di colore aggiornata per ignorare la riga media e gli assenti
+            # 4. Ordiniamo per Media decrescente e riempiamo i vuoti
+            pivot_df = pivot_df.sort_values(by='MEDIA', ascending=False).fillna("-")
+
+            # 5. Funzione colore aggiornata
             def color_voti_safe(val):
                 if val == "ass" or val == "-" or val == "":
                     return 'color: #777777;'
                 try:
                     voto = float(val)
-                    if voto >= 7: return 'background-color: #228b22; color: white;'
-                    if voto >= 6: return 'background-color: #90ee90; color: black;'
-                    if voto >= 5: return 'background-color: #ffffe0; color: black;'
-                    return 'background-color: #ffcccb; color: black;'
+                    if voto >= 7: return 'background-color: #228b22; color: white;' # Verde
+                    if voto >= 6: return 'background-color: #90ee90; color: black;' # Verde chiaro
+                    if voto >= 5: return 'background-color: #ffffe0; color: black;' # Giallo
+                    return 'background-color: #ffcccb; color: black;' # Rosso
                 except:
                     return ''
             
-            # Visualizzazione sicura
-            st.dataframe(pivot_df.style.apply(lambda x: [color_voti_safe(v) for v in x], axis=None).format(precision=1), use_container_width=True)
+            # Visualizzazione
+            st.dataframe(
+                pivot_df.style.applymap(color_voti_safe).format(precision=1), 
+                use_container_width=True
+            )
+            st.caption("Le date si aggiungono orizzontalmente verso destra. La colonna MEDIA mostra il rendimento totale.")
+
+        if st.button("🗑️ Elimina Ultima Registrazione Fatica", use_container_width=True):
+            if not st.session_state['fatica_db'].empty:
+                st.session_state['fatica_db'] = st.session_state['fatica_db'].iloc[:-1]
+                salva_fatica(st.session_state['fatica_db'])
+                st.success("Ultima riga eliminata!")
+                st.rerun()
 
         # 4. TASTI ESPORTAZIONE (A FIANCO)
         st.divider()
@@ -286,8 +297,8 @@ elif st.session_state['view'] == 'stats':
     df_f = st.session_state['fatica_db']
     
     if not df_f.empty:
-        # Uniamo le tabelle per avere i nomi nel grafico
-        df_f['Cognome'] = df_f['ID_Giocatore'].apply(lambda x: df_p.iloc[int(x)]['Cognome'])
+    # Usiamo il cognome già salvato nel log fatica invece di cercarlo per indice
+    pass # Il cognome è già presente nel df_stats creato dopo
     
     if not st.session_state['fatica_db'].empty:
         df_stats = st.session_state['fatica_db'].copy()
