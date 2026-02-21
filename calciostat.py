@@ -91,8 +91,6 @@ if 'logged_in' not in st.session_state:
 if 'skip_upload' not in st.session_state:
     st.session_state['skip_upload'] = False
 
-if 'players_db' not in st.session_state or 'fatica_db' not in st.session_state:
-    p, f = carica_dati_relazionali()
     st.session_state['players_db'] = p
     st.session_state['fatica_db'] = f
 
@@ -151,21 +149,7 @@ st.divider()
 
 # --- LOGICA PAGINE ---
 
-if st.session_state['view'] == 'campionato':
-    st.subheader("🏆 Selezione Girone")
-    lista_g = list(GIRONI_SQUADRE.keys())
-    st.session_state['camp_scelto'] = st.selectbox("Scegli girone:", lista_g, index=lista_g.index(st.session_state['camp_scelto']))
-    if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
-
-elif st.session_state['view'] == 'dashboard':
-    st.subheader(f"📋 {st.session_state['camp_scelto']}")
-    df_p = st.session_state['players_db']
-    df_f = st.session_state['fatica_db']
-
-    if not df_p.empty:
-        st.dataframe(df_p.sort_values(by="Rating", ascending=False), use_container_width=True, hide_index=True)
-
-elif st.session_state['view'] == 'aggiungi':
+if st.session_state['view'] == 'aggiungi':
     st.subheader("➕ Nuovo Giocatore")
     squadre = GIRONI_SQUADRE[st.session_state['camp_scelto']]
     with st.form("add_form"):
@@ -185,7 +169,7 @@ elif st.session_state['view'] == 'aggiungi':
             rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
             nuovo = [sq, cog, nom, ru, nas, pr, mi, gl, 0, gi, ro, rat, nt]
             st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
-            salva_tutto(st.session_state['players_db'], st.session_state['fatica_db'])
+            salva_giocatori(st.session_state['players_db'])
             st.session_state['view'] = 'dashboard'; st.rerun()
 
 # --- LOGICA DASHBOARD AGGIORNATA ---
@@ -216,9 +200,6 @@ if st.session_state['view'] == 'dashboard':
             with c2:
                 data_f = st.date_input("Data sessione:", value=date.today())
             
-            f_col, n_col = st.columns([2, 2])
-            with f_col:
-                fatica_v = st.slider("Livello Fatica (0-100):", 0, 100, 50)
             with n_col:
                 nota_f = st.text_input("Note/Assenze:", placeholder="es: Lavoro differenziato")
 
