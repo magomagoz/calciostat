@@ -298,7 +298,7 @@ elif st.session_state['view'] == 'stats':
     
     if not df_f.empty:
     # Usiamo il cognome già salvato nel log fatica invece di cercarlo per indice
-    pass # Il cognome è già presente nel df_stats creato dopo
+        pass # Il cognome è già presente nel df_stats creato dopo
     
     if not st.session_state['fatica_db'].empty:
         df_stats = st.session_state['fatica_db'].copy()
