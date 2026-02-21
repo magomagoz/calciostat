@@ -153,35 +153,47 @@ if st.session_state['view'] == 'dashboard':
 
         st.divider()
 
-        # 3. TABELLA FATICA COMPILATA FINORA
-        st.subheader("📅 Registro Storico Fatica")
+        # 3. TABELLA FATICA (VISUALIZZAZIONE EXCEL PIVOT)
+        st.subheader("📅 Tabella Presenze e Valutazioni (Stile Excel)")
         if not st.session_state['fatica_db'].empty:
-            df_fatica_vis = st.session_state['fatica_db'].copy()
-            
-            # Convertiamo la colonna Fatica in numerica, trasformando errori (come "ass") in NaN
-            # così il gradiente non si rompe
-            df_fatica_vis['Fatica_Num'] = pd.to_numeric(df_fatica_vis['Fatica'], errors='coerce')
-            
-            # Ordiniamo per data
-            df_fatica_vis = df_fatica_vis.sort_values(by="Data", ascending=False)
-            
+            df_f = st.session_state['fatica_db'].copy()
+
+            # Creiamo la tabella Pivot: Date sulle righe, Giocatori sulle colonne
+            # fillna("") serve per lasciare vuoto dove non c'è allenamento
+            pivot_df = df_f.pivot_table(
+                index='Data', 
+                columns='Cognome', 
+                values='Fatica', 
+                aggfunc='first'
+            ).fillna("-")
+
+            # Ordiniamo le date in modo che l'ultima sia sempre in alto
+            pivot_df = pivot_df.sort_index(ascending=False)
+
+            # Funzione per colorare le celle (Verde se voto alto, Rosso basso, Grigio ASS)
+            def color_voti(val):
+                if val == "ass":
+                    return 'background-color: #d3d3d3; color: black;' # Grigio per assenti
+                try:
+                    voto = float(val)
+                    if voto >= 7: return 'background-color: #228b22; color: white;' # Verde scuro
+                    if voto >= 6: return 'background-color: #90ee90; color: black;' # Verde chiaro
+                    if voto >= 5: return 'background-color: #ffffe0; color: black;' # Giallo
+                    return 'background-color: #ffcccb; color: black;' # Rosso
+                except:
+                    return ''
+
+            # Visualizzazione con stile applicato
             try:
-                # Visualizzazione con stile: coloriamo solo se il valore è numerico
                 st.dataframe(
-                    df_fatica_vis.style.background_gradient(
-                        subset=['Fatica_Num'], 
-                        cmap='RdYlGn_r', 
-                        vmin=0, 
-                        vmax=10  # Cambiato a 10 se usi voti tipo Excel, o 100 per percentuale
-                    ).format({"Fatica_Num": "{:.1f}"}, na_rep="ASSENTE"), # Mostra ASSENTE se non è un numero
-                    use_container_width=True,
-                    hide_index=True
+                    pivot_df.style.applymap(color_voti),
+                    use_container_width=True
                 )
             except:
-                # Se lo styling fallisce ancora, mostra la tabella semplice senza colori per non bloccare l'app
-                st.dataframe(df_fatica_vis, use_container_width=True, hide_index=True)
-        else:
-            st.info("Nessun dato di fatica registrato.")
+                # Fallback se lo stile dà problemi
+                st.dataframe(pivot_df, use_container_width=True)
+            
+            st.caption("Legenda: Verde (Ottimo), Giallo (Sufficiente), Rosso (Affaticato), Grigio (Assente)")
 
 
         # 4. TASTI ESPORTAZIONE (A FIANCO)
