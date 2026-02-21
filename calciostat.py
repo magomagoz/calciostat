@@ -97,7 +97,7 @@ if 'editing_index' not in st.session_state: st.session_state['editing_index'] = 
 
 # --- LOGIN ---
 if not st.session_state['logged_in']:
-    st.title("🔐 Login Scouting")
+    st.title("🔐 Login")
     u = st.text_input("User")
     p = st.text_input("Pass", type="password")
     if st.button("Entra"):
@@ -134,9 +134,9 @@ if st.session_state['players_db'].empty and not st.session_state.get('setup_done
 # --- NAVBAR ---
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
+    if st.button("🏆 Scelta Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Aggiungi", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Aggiungi Calciatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
     if st.button("📋 Elenco/Fatica", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
 with c4:
@@ -147,20 +147,20 @@ st.divider()
 # --- LOGICA PAGINE ---
 
 if st.session_state['view'] == 'aggiungi':
-    st.subheader("➕ Nuovo Giocatore")
+    st.subheader("➕ Nuovo Calciatore")
     squadre = GIRONI_SQUADRE[st.session_state['camp_scelto']]
     with st.form("add_form"):
         sq = st.selectbox("Squadra", squadre)
-        ru = st.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"])
+        ru = st.selectbox("Ruolo", ["Portiere", "Difensore", "Centrocampista", "Attaccante"])
         cog = st.text_input("Cognome")
         nom = st.text_input("Nome")
-        nas = st.date_input("Nascita", value=date(2009,1,1))
+        nas = st.date_input("Data di Nascita", value=date(2009,1,1))
         c3, c4, c5 = st.columns(3)
         pr = c3.number_input("Presenze", 0)
-        mi = c4.number_input("Minuti", 0)
-        gl = c5.number_input("Gol", 0)
-        gi = st.number_input("Gialli", 0)
-        ro = st.number_input("Rossi", 0)
+        mi = c4.number_input("Minuti giocati", 0)
+        gl = c5.number_input("Gol fatti", 0)
+        gi = st.number_input("Cartellini Gialli", 0)
+        ro = st.number_input("Cartellini Rossi", 0)
         nt = st.text_area("Note")
         if st.form_submit_button("SALVA"):
             rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
@@ -171,11 +171,11 @@ if st.session_state['view'] == 'aggiungi':
 
 # --- LOGICA DASHBOARD AGGIORNATA ---
 if st.session_state['view'] == 'dashboard':
-    st.subheader(f"📋 Gestione Database - {st.session_state.get('camp_scelto', 'U17')}")
+    st.subheader(f"📋 {st.session_state.get('camp_scelto')}")
     
     # 1. TABELLA GIOCATORI
     if not st.session_state['players_db'].empty:
-        st.write("### 👥 Elenco Anagrafica Giocatori")
+        st.write("### 👥 Tabella Giocatori")
         st.dataframe(
             st.session_state['players_db'].sort_values(by="Rating", ascending=False), 
             use_container_width=True, 
@@ -185,7 +185,7 @@ if st.session_state['view'] == 'dashboard':
         st.divider()
 
         # 2. MODULO NUOVA FATICA
-        st.subheader("🏃 Inserimento Sessione Fatica")
+        st.subheader("🏃 Inserimento Fatica")
         with st.container():
             df_p = st.session_state['players_db']
             nomi_completi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']}", axis=1).tolist()
@@ -199,7 +199,7 @@ if st.session_state['view'] == 'dashboard':
             c_tipo = st.radio("Stato sessione:", ["Presente", "Assente"], horizontal=True)
             
             if c_tipo == "Presente":
-                fatica_v = st.slider("Voto/Fatica (0-10):", 0.0, 10.0, 6.0, step=0.5)
+                fatica_v = st.slider("Fatica (0-10):", 0.0, 10.0, 0.0, step=0.5)
             else:
                 fatica_v = "ass" 
 
@@ -222,7 +222,7 @@ if st.session_state['view'] == 'dashboard':
         st.divider()
 
         # 3. TABELLA FATICA (STILE EXCEL CON MEDIA FINALE)
-        st.subheader("📅 Tabella Presenze e Valutazioni (Stile Excel)")
+        st.subheader("📅 Tabella Fatica")
         if not st.session_state['fatica_db'].empty:
             df_f = st.session_state['fatica_db'].copy()
 
@@ -266,22 +266,28 @@ if st.session_state['view'] == 'dashboard':
 
         # 4. TASTI ESPORTAZIONE (A FIANCO)
         st.divider()
-        st.subheader("📥 Esporta Dati in CSV")
+        st.subheader("📥 Salvataggio Dati")
         col_ex1, col_ex2 = st.columns(2)
         
         with col_ex1:
             csv_p = st.session_state['players_db'].to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Scarica Lista Giocatori", csv_p, "giocatori.csv", "text/csv", use_container_width=True)
+            st.download_button("📥 Salva Lista Giocatori", csv_p, "giocatori.csv", "text/csv", use_container_width=True)
             
         with col_ex2:
             csv_f = st.session_state['fatica_db'].to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Scarica Registro Fatica", csv_f, "storico_fatica.csv", "text/csv", use_container_width=True)
+            st.download_button("📥 Salva Registro Fatica", csv_f, "storico_fatica.csv", "text/csv", use_container_width=True)
 
     else:
         st.info("Il database giocatori è vuoto. Aggiungi un calciatore per iniziare.")
 
 elif st.session_state['view'] == 'stats':
-    st.subheader("📊 Analisi Carichi di Lavoro")
+    st.subheader("📊 Analisi Storica Fatica")
+    df_p = st.session_state['players_db']
+    df_f = st.session_state['fatica_db']
+    
+    if not df_f.empty:
+        # Uniamo le tabelle per avere i nomi nel grafico
+        df_f['Cognome'] = df_f['ID_Giocatore'].apply(lambda x: df_p.iloc[int(x)]['Cognome'])
     
     if not st.session_state['fatica_db'].empty:
         df_stats = st.session_state['fatica_db'].copy()
