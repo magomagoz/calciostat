@@ -149,17 +149,33 @@ if st.session_state['view'] == 'dashboard':
         # 3. TABELLA FATICA COMPILATA FINORA
         st.subheader("📅 Registro Storico Fatica")
         if not st.session_state['fatica_db'].empty:
-            # Ordiniamo per data decrescente per vedere subito gli ultimi inserimenti
-            df_fatica_vis = st.session_state['fatica_db'].sort_values(by="Data", ascending=False)
+            df_fatica_vis = st.session_state['fatica_db'].copy()
             
-            # Applichiamo un gradiente di colore per rendere la tabella simile a un semaforo
-            st.dataframe(
-                df_fatica_vis.style.background_gradient(subset=['Fatica'], cmap='RdYlGn_r', vmin=0, vmax=100),
-                use_container_width=True,
-                hide_index=True
-            )
+            # Convertiamo la colonna Fatica in numerica, trasformando errori (come "ass") in NaN
+            # così il gradiente non si rompe
+            df_fatica_vis['Fatica_Num'] = pd.to_numeric(df_fatica_vis['Fatica'], errors='coerce')
+            
+            # Ordiniamo per data
+            df_fatica_vis = df_fatica_vis.sort_values(by="Data", ascending=False)
+            
+            try:
+                # Visualizzazione con stile: coloriamo solo se il valore è numerico
+                st.dataframe(
+                    df_fatica_vis.style.background_gradient(
+                        subset=['Fatica_Num'], 
+                        cmap='RdYlGn_r', 
+                        vmin=0, 
+                        vmax=10  # Cambiato a 10 se usi voti tipo Excel, o 100 per percentuale
+                    ).format({"Fatica_Num": "{:.1f}"}, na_rep="ASSENTE"), # Mostra ASSENTE se non è un numero
+                    use_container_width=True,
+                    hide_index=True
+                )
+            except:
+                # Se lo styling fallisce ancora, mostra la tabella semplice senza colori per non bloccare l'app
+                st.dataframe(df_fatica_vis, use_container_width=True, hide_index=True)
         else:
-            st.info("Nessun dato di fatica registrato oggi.")
+            st.info("Nessun dato di fatica registrato.")
+
 
         # 4. TASTI ESPORTAZIONE (A FIANCO)
         st.divider()
