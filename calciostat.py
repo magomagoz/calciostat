@@ -4,18 +4,46 @@ from datetime import date
 import os
 
 # --- CONFIGURAZIONE ---
-st.set_page_config(page_title="Scouting & Fatigue System", layout="wide")
+st.set_page_config(page_title="Scouting Management Pro", layout="wide")
 
 try:
     import plotly.express as px
 except ImportError:
-    st.error("Aggiungi 'plotly' al file requirements.txt")
+    st.error("Per favore aggiungi 'plotly' al file requirements.txt")
+
+try:
+    st.image("banner.png", use_container_width=True)
+except:
+    st.title("⚽ Scouting Management")
+
+# --- LISTE SQUADRE ---
+GIRONI_SQUADRE = {
+    "ALLIEVI PROVINCIALI U17 ROMA - Girone C": ["City Football Club", "Atletico Morena", "Magnitudo FCCG", "ACR Football Club", "Academy T.T.T. Pro", "Academy Mundial", "Almas Roma", "Accademia Sporting Roma", "Calcio ULN Consalvo 1972", "Next Gen Lodigiani", "Atletico San Lorenzo", "Accademy Certosa", "Accademia Real Tuscolano C.", "Aquilotti Lazio C5"],
+    "ALLIEVI PROVINCIALI U17 ROMA - Girone A": ["Aurelia Antica Aurelio", "Leocon", "Bracciano Calcio", "Real Campagnano", "Evergreen Civitavecchia", "Santa Marinella 1947", "Cortina Sporting Club", "Anguillara Calcio", "Nuova Valle Aurelia", "Formello Calcio C.R.", "DM 84 Cerveteri", "Accademy SVS Roma", "Virtus Marina di San Nicola", "Tolfa Calcio", "Borgo Palidoro", "Forte Bravetta"],
+    "ALLIEVI PROVINCIALI U17 ROMA - Girone B": ["SVS Roma", "Fortitudo Roma Club 1908", "Vigna Pia", "MYSP", "Trigoria", "CVN Casal Bernocchi", "Quadraro Sport Roma", "Real Tirreno", "S.C. Due Ponti Calcio", "O.M.C. Calcio", "Garbatella 1920", "Polisportiva G. Castello", "Stella Polare De La Salle", "Infernetto calcio"],
+    "ALLIEVI PROVINCIALI U17 ROMA - Girone D": ["Monterotondo 1935", "Nova 7", "Riano Calcio", "F.C. Rieti 1936", "Vigor Rignano Flaminio", "Santa Lucia Calcio", "Città di Fiano", "Mentana", "Accademia Calcio Sabina SL", "Gorilla", "Tor Lupara", "Rieti City Soccer Club", "Piazza Tevere"],
+    "ALLIEVI PROVINCIALI U17 ROMA - Girone E": ["Nettuno", "Sporting Nuova Florida", "Castelverde Calcio", "Pol. Canarini 1926 RDP", "Academy Cynthia Genzano", "Colonna", "F.C. Grifone Soccer", "Labico Calcio", "Accademia Calcio Frascati", "Atletico Monteporzio", "Vis S. Maria delle Mole", "Valle Martella Calcio", "Semprevisa", "SS. Pietro e Paolo"],
+    "ALLIEVI PROVINCIALI U17 ROMA - Girone F": ["Spes Artiglio", "Tor Tre Teste Next Gen", "S. Francesca Cabrini '98", "Vicovaro", "GDC Ponte di Nona", "Futbol Talenti", "FC Grotte Celoni Roma VII", "Virtus Torre Maura", "Setteville Caserosse", "Ledesma Academy", "Football Jus", "Vis Subiaco", "Villa Adriana", "Olimpica Roma"]
+}
 
 # --- COSTANTI FILE ---
 DB_PLAYERS = "database_scouting.csv"
 DB_FATICA = "log_fatica.csv"
 
 # --- FUNZIONI DI PERSISTENZA ---
+def carica_dati_relazionali():
+    try:
+        df_p = pd.read_csv(DB_PLAYERS)
+    except:
+        df_p = pd.DataFrame(columns=["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", "Minutaggio", "Gol", "Fatica", "Gialli", "Rossi", "Rating", "Note"])
+    
+    try:
+        df_f = pd.read_csv(DB_FATICA)
+        df_f['Data'] = pd.to_datetime(df_f['Data']).dt.date
+    except:
+        df_f = pd.DataFrame(columns=["ID_Giocatore", "Data", "Fatica", "Note"])
+    return df_p, df_f
+
 def carica_giocatori():
     if os.path.exists(DB_PLAYERS):
         df = pd.read_csv(DB_PLAYERS)
@@ -37,6 +65,20 @@ def salva_giocatori(df):
 def salva_fatica(df):
     df.to_csv(DB_FATICA, index=False)
 
+def calcola_rating_empirico(presenze, gol, minuti, data_nascita, ruolo, gialli, rossi):
+    rating = 5.0
+    if ruolo == "Difensori": rating += (gol * 0.5)
+    elif ruolo == "Centrocampista": rating += (gol * 0.3)
+    else: rating += (gol * 0.2)
+    rating += (presenze // 3) * 0.1
+    rating += (minuti // 180) * 0.2
+    anno = data_nascita.year
+    if anno >= 2011: rating += 0.5
+    elif anno == 2010: rating += 0.2
+    rating -= (gialli * 0.3)
+    rating -= (rossi * 0.75)
+    return round(max(min(rating, 10.0), 0.0), 1)
+
 # --- INIZIALIZZAZIONE SESSION STATE ---
 if 'players_db' not in st.session_state:
     st.session_state['players_db'] = carica_giocatori()
@@ -46,6 +88,17 @@ if 'view' not in st.session_state:
     st.session_state['view'] = 'dashboard'
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
+if 'skip_upload' not in st.session_state:
+    st.session_state['skip_upload'] = False
+
+if 'players_db' not in st.session_state or 'fatica_db' not in st.session_state:
+    p, f = carica_dati_relazionali()
+    st.session_state['players_db'] = p
+    st.session_state['fatica_db'] = f
+
+if 'view' not in st.session_state: st.session_state['view'] = 'dashboard'
+if 'camp_scelto' not in st.session_state: st.session_state['camp_scelto'] = list(GIRONI_SQUADRE.keys())[0]
+if 'editing_index' not in st.session_state: st.session_state['editing_index'] = None
 
 # --- LOGIN ---
 if not st.session_state['logged_in']:
@@ -95,6 +148,45 @@ with c4:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 
 st.divider()
+
+# --- LOGICA PAGINE ---
+
+if st.session_state['view'] == 'campionato':
+    st.subheader("🏆 Selezione Girone")
+    lista_g = list(GIRONI_SQUADRE.keys())
+    st.session_state['camp_scelto'] = st.selectbox("Scegli girone:", lista_g, index=lista_g.index(st.session_state['camp_scelto']))
+    if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
+
+elif st.session_state['view'] == 'dashboard':
+    st.subheader(f"📋 {st.session_state['camp_scelto']}")
+    df_p = st.session_state['players_db']
+    df_f = st.session_state['fatica_db']
+
+    if not df_p.empty:
+        st.dataframe(df_p.sort_values(by="Rating", ascending=False), use_container_width=True, hide_index=True)
+
+elif st.session_state['view'] == 'aggiungi':
+    st.subheader("➕ Nuovo Giocatore")
+    squadre = GIRONI_SQUADRE[st.session_state['camp_scelto']]
+    with st.form("add_form"):
+        sq = st.selectbox("Squadra", squadre)
+        ru = st.selectbox("Ruolo", ["Portiere", "Difensori", "Centrocampista", "Attaccante"])
+        cog = st.text_input("Cognome")
+        nom = st.text_input("Nome")
+        nas = st.date_input("Nascita", value=date(2009,1,1))
+        c3, c4, c5 = st.columns(3)
+        pr = c3.number_input("Presenze", 0)
+        mi = c4.number_input("Minuti", 0)
+        gl = c5.number_input("Gol", 0)
+        gi = st.number_input("Gialli", 0)
+        ro = st.number_input("Rossi", 0)
+        nt = st.text_area("Note")
+        if st.form_submit_button("SALVA"):
+            rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
+            nuovo = [sq, cog, nom, ru, nas, pr, mi, gl, 0, gi, ro, rat, nt]
+            st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
+            salva_tutto(st.session_state['players_db'], st.session_state['fatica_db'])
+            st.session_state['view'] = 'dashboard'; st.rerun()
 
 # --- LOGICA DASHBOARD AGGIORNATA ---
 if st.session_state['view'] == 'dashboard':
