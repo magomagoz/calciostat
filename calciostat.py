@@ -144,11 +144,11 @@ with c4:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 with c5:
     if st.button("↩️ Torna all'inizio", use_container_width=True): st.session_state['view'] = 'dashboard' 
-        st.rerun()
+
 with c6:
     if st.button("🚪 Esci", use_container_width=True): st.session_state['view'] = 'logged_in'
+    st.rerun()    
 
-st.rerun()    
 st.divider()
 
 # --- LOGICA PAGINE ---
