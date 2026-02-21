@@ -97,7 +97,7 @@ if st.session_state['logged_in']:
         col_up, col_new = st.columns(2)
         
         with col_up:
-            st.subheader("📤 Carica Backup")
+            st.subheader("📤 Carica File")
             uploaded_initial = st.file_uploader("Trascina qui il tuo file .csv", type="csv", key="initial_upload")
             if uploaded_initial:
                 try:
@@ -179,7 +179,7 @@ elif st.session_state['view'] == 'dashboard':
 
         # --- EXPORT / IMPORT / RESET ---
         st.divider()
-        st.subheader("📥 Esporta")
+        st.subheader("📥 Salva in un file")
         csv = df_p.to_csv(index=False).encode('utf-8')
         st.download_button("💾 Scarica CSV", csv, "database.csv", "text/csv", use_container_width=True)
         
