@@ -96,9 +96,8 @@ with c4:
 
 st.divider()
 
-# --- LOGICA DASHBOARD ---
 # --- LOGICA DASHBOARD AGGIORNATA ---
-elif st.session_state['view'] == 'dashboard':
+if st.session_state['view'] == 'dashboard':
     st.subheader(f"📋 Gestione Database - {st.session_state.get('camp_scelto', 'U17')}")
     
     # 1. TABELLA GIOCATORI
