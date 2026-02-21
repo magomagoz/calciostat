@@ -143,11 +143,14 @@ with c3:
 with c4:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 with c5:
-    if st.button("↩️ Torna all'inizio", use_container_width=True): st.session_state['view'] = 'dashboard' 
-
+    if st.button("↩️ Torna all'inizio", use_container_width=True): 
+        st.session_state['view'] = 'dashboard'
+        st.rerun() 
 with c6:
-    if st.button("🚪 Esci", use_container_width=True): st.session_state['view'] = 'logged_in'
-    st.rerun()    
+    if st.button("🚪 Esci", use_container_width=True): 
+        st.session_state['logged_in'] = False  # Questo è il vero Logout
+        st.session_state['view'] = 'dashboard' # Reset per il prossimo login
+        st.rerun()    
 
 st.divider()
 
@@ -174,12 +177,31 @@ if st.session_state['view'] == 'aggiungi':
         gi = st.number_input("Cartellini Gialli", 0)
         ro = st.number_input("Cartellini Rossi", 0)
         nt = st.text_area("Note")
+        
         if st.form_submit_button("SALVA"):
-            rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
-            nuovo = [sq, cog, nom, ru, nas, pr, mi, gl, 0, gi, ro, rat, nt]
-            st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
-            salva_giocatori(st.session_state['players_db'])
-            st.session_state['view'] = 'dashboard'; st.rerun()
+            # 1. Verifica campo vuoto
+            if not cog.strip():
+                st.error("⚠️ Il campo 'Cognome' è obbligatorio.")
+            
+            else:
+                # 2. Verifica se esiste già un giocatore con lo stesso Nome e Cognome nella stessa Squadra
+                duplicato = st.session_state['players_db'][
+                    (st.session_state['players_db']['Cognome'].str.lower() == cog.strip().lower()) & 
+                    (st.session_state['players_db']['Nome'].str.lower() == nom.strip().lower()) & 
+                    (st.session_state['players_db']['Squadra'] == sq)
+                ]
+                
+                if not duplicato.empty:
+                    st.warning(f"⚠️ Attenzione: {cog} {nom} è già presente nel database per la squadra {sq}.")
+                else:
+                    # Se i controlli passano, salva
+                    rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
+                    nuovo = [sq, cog.strip(), nom.strip(), ru, nas, pr, mi, gl, 0, gi, ro, rat, nt]
+                    st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
+                    salva_giocatori(st.session_state['players_db'])
+                    st.success(f"✅ {cog} aggiunto correttamente!")
+                    st.session_state['view'] = 'dashboard'
+                    st.rerun()
 
 elif st.session_state['view'] == 'modifica':
     idx = st.session_state['editing_index']
@@ -376,7 +398,7 @@ elif st.session_state['view'] == 'stats':
     if not st.session_state['players_db'].empty:
         df = st.session_state['players_db']
         st.plotly_chart(px.pie(df, names='Ruolo', hole=0.3), use_container_width=True)
-        st.plotly_chart(px.bar(df, x='Calciatore', y='Rating', color='Squadra'), use_container_width=True)
+        st.plotly_chart(px.bar(df, x='Cognome', y='Rating', color='Squadra'), use_container_width=True)
     
     st.subheader("📊 Analisi Storica Fatica")
     df_p = st.session_state['players_db']
@@ -408,7 +430,7 @@ elif st.session_state['view'] == 'stats':
             df_filtrato['Voto_Num'] = pd.to_numeric(df_filtrato['Fatica'], errors='coerce')
             # Rimuovi le righe senza voto numerico prima di calcolare la classifica
             medie_periodo = df_filtrato.dropna(subset=['Voto_Num']).groupby('Cognome')['Voto_Num'].mean().reset_index()
-            medie_periodo.columns = ['Calciatore', 'Media Voto nel Periodo']
+            medie_periodo.columns = ['Cognome', 'Media Voto nel Periodo']
             
             # Visualizzazione Risultati
             c_graf, c_tab = st.columns([2, 1])
