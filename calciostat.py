@@ -156,7 +156,7 @@ elif st.session_state['view'] == 'dashboard':
         
         st.divider()
         check = st.checkbox("🗑️ Abilita cancellazione totale")
-        if check and st.button("🗑️ ATTENZIONE: CANCELLA TUTTO"):
+        if check and st.button("🔥🔥🔥 ATTENZIONE: CANCELLA TUTTO"):
             st.session_state['players_db'] = pd.DataFrame(columns=df.columns)
             salva_dati(st.session_state['players_db'])
             st.rerun()
