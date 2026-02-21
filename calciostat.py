@@ -248,19 +248,21 @@ if st.session_state['view'] == 'dashboard':
             pivot_df = pivot_df.fillna("-")
 
             # Funzione colore (aggiornata per gestire la riga media)
-            def color_voti(val):
-                if val == "ass" or val == "-": return 'color: #777777;' 
+            # Funzione di colore aggiornata per ignorare la riga media e gli assenti
+            def color_voti_safe(val):
+                if val == "ass" or val == "-" or val == "":
+                    return 'color: #777777;'
                 try:
                     voto = float(val)
                     if voto >= 7: return 'background-color: #228b22; color: white;'
                     if voto >= 6: return 'background-color: #90ee90; color: black;'
                     if voto >= 5: return 'background-color: #ffffe0; color: black;'
                     return 'background-color: #ffcccb; color: black;'
-                except: return ''
-
-            st.dataframe(pivot_df.style.applymap(color_voti).format(precision=1), use_container_width=True)
-
-
+                except:
+                    return ''
+            
+            # Visualizzazione sicura
+            st.dataframe(pivot_df.style.apply(lambda x: [color_voti_safe(v) for v in x], axis=None).format(precision=1), use_container_width=True)
 
         # 4. TASTI ESPORTAZIONE (A FIANCO)
         st.divider()
