@@ -143,27 +143,26 @@ elif st.session_state['view'] == 'dashboard':
                 st.session_state['editing_index'] = nomi.index(mod)
                 st.session_state['view'] = 'modifica'; st.rerun()
 
-        # --- SEZIONE IMPORTA ---
-        st.subheader("📤 Importa Dati")
-        uploaded_file = st.file_uploader("Scegli un file CSV da caricare nel database", type="csv")
+    # --- SEZIONE IMPORTA ---
+    st.subheader("📤 Importa Dati")
+    uploaded_file = st.file_uploader("Scegli un file CSV da caricare nel database", type="csv")
                 
-        if uploaded_file is not None:
-            if st.button("🚀 CARICA E UNISCI AL DATABASE"):
-                try:
-                    # Leggiamo il file caricato
-                    import_df = pd.read_csv(uploaded_file)
+    if uploaded_file is not None:
+        if st.button("🚀 CARICA E UNISCI AL DATABASE"):
+            try:
+                # Leggiamo il file caricato
+                import_df = pd.read_csv(uploaded_file)
                             
-                    # Uniamo i dati nuovi a quelli esistenti
-                    st.session_state['players_db'] = pd.concat([st.session_state['players_db'], import_df], ignore_index=True)
+                # Uniamo i dati nuovi a quelli esistenti
+                st.session_state['players_db'] = pd.concat([st.session_state['players_db'], import_df], ignore_index=True)
                             
-                    # Salviamo fisicamente sul file locale
-                    salva_dati(st.session_state['players_db'])
+                # Salviamo fisicamente sul file locale
+                salva_dati(st.session_state['players_db'])
                             
-                    st.success(f"Importati correttamente {len(import_df)} giocatori!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Errore durante il caricamento: {e}")
-
+                st.success(f"Importati correttamente {len(import_df)} giocatori!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Errore durante il caricamento: {e}")
 
 elif st.session_state['view'] == 'dashboard':
     st.subheader("🏃 Registrazione Fatica Giornaliera")
