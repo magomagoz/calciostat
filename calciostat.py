@@ -108,8 +108,12 @@ if not st.session_state['logged_in']:
 
 # --- SCHERMATA INIZIALE CARICAMENTO (DOPO LOGIN) ---
 if st.session_state['players_db'].empty and not st.session_state.get('setup_done'):
-    st.title("🚀 Configurazione Iniziale")
-    st.info("Benvenuto! Carica i file CSV per riprendere il lavoro o clicca 'Inizia' per un nuovo DB.")
+    st.title("🚀 Benvenuto Marco!")
+    #st.info("Carica i file CSV per riprendere il lavoro o clicca 'Inizia' per un nuovo DB.")
+
+    if st.button("Vai alla Dashboard oppure carica i file salvati in precedenza", use_container_width=True):
+        st.session_state['setup_done'] = True
+        st.rerun()
     
     col_a, col_b = st.columns(2)
     with col_a:
@@ -126,13 +130,10 @@ if st.session_state['players_db'].empty and not st.session_state.get('setup_done
             salva_fatica(st.session_state['fatica_db'])
             st.success("Storico fatica caricato!")
 
-    if st.button("Vai alla Dashboard / Inizia da zero", use_container_width=True):
-        st.session_state['setup_done'] = True
-        st.rerun()
-    st.stop()
+        st.stop()
 
 # --- NAVBAR ---
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
     if st.button("🏆 Scelta Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
@@ -141,7 +142,13 @@ with c3:
     if st.button("📋 Elenco/Fatica", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
 with c4:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
+with c5:
+    if st.button("↩️ Torna all'inizio", use_container_width=True): st.session_state['view'] = 'dashboard' 
+        st.rerun()
+with c6:
+    if st.button("🚪 Esci", use_container_width=True): st.session_state['view'] = 'logged_in'
 
+st.rerun()    
 st.divider()
 
 # --- LOGICA PAGINE ---
