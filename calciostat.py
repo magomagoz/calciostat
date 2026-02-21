@@ -105,7 +105,7 @@ if st.session_state['view'] == 'campionato':
     if st.button("Conferma"): st.session_state['view'] = 'dashboard'; st.rerun()
 
 elif st.session_state['view'] == 'dashboard':
-    st.subheader(f"📋 Elenco - {st.session_state['camp_scelto']}")
+    st.subheader(f"📋 {st.session_state['camp_scelto']}")
     df = st.session_state['players_db']
     if not df.empty:
         st.dataframe(df.sort_values(by="Rating", ascending=False), use_container_width=True, hide_index=True)
