@@ -177,9 +177,9 @@ if st.session_state['view'] == 'aggiungi':
         gi = st.number_input("Cartellini Gialli", 0)
         ro = st.number_input("Cartellini Rossi", 0)
         nt = st.text_area("Note")
-        
+
+
         if st.form_submit_button("SALVA"):
-            # 1. Verifica campo vuoto
             if not cog.strip():
                 st.error("⚠️ Il campo 'Cognome' è obbligatorio.")
             
@@ -194,15 +194,34 @@ if st.session_state['view'] == 'aggiungi':
                 if not duplicato.empty:
                     st.warning(f"⚠️ Attenzione: {cog} {nom} è già presente nel database per la squadra {sq}.")
                 else:
-                    # Se i controlli passano, salva
+  
+                    # Calcoliamo il rating
                     rat = calcola_rating_empirico(pr, gl, mi, nas, ru, gi, ro)
-                    nuovo = [sq, cog.strip(), nom.strip(), ru, nas, pr, mi, gl, 0, gi, ro, rat, nt]
+                    
+                    # LA LISTA DEVE AVERE 13 ELEMENTI PER COMBACIARE CON IL DB
+                    nuovo = [
+                        sq,       # 1. Squadra
+                        cog,      # 2. Cognome
+                        nom,      # 3. Nome
+                        ru,       # 4. Ruolo
+                        nas,      # 5. Data di nascita
+                        pr,       # 6. Presenze
+                        mi,       # 7. Minutaggio
+                        gl,       # 8. Gol
+                        0,        # 9. Fatica (valore iniziale)
+                        gi,       # 10. Gialli
+                        ro,       # 11. Rossi
+                        rat,      # 12. Rating
+                        nt        # 13. Note
+                    ]
+                    
+                    # Inserimento nel database
                     st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
                     salva_giocatori(st.session_state['players_db'])
-                    st.success(f"✅ {cog} aggiunto correttamente!")
+                    st.success(f"Calciatore {cog} salvato!")
                     st.session_state['view'] = 'dashboard'
                     st.rerun()
-
+        
 elif st.session_state['view'] == 'modifica':
     idx = st.session_state['editing_index']
     gio = st.session_state['players_db'].iloc[idx]
