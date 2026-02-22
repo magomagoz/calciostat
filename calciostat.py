@@ -462,12 +462,19 @@ elif st.session_state['view'] == 'stats':
                 
             with c_tab:
                 st.write("**Classifica Medie**")
-                # Visualizzazione tabella con gradiente (Richiede jinja2 installato)
-                st.dataframe(medie_periodo.style.background_gradient(cmap='RdYlGn', subset=['Media Voto nel Periodo']), 
-                             hide_index=True, use_container_width=True)
+                # Protezione se jinja2 non è ancora installato
+                try:
+                    st.dataframe(
+                        medie_periodo.style.background_gradient(cmap='RdYlGn', subset=['Media Voto nel Periodo']), 
+                        hide_index=True, 
+                        use_container_width=True
+                    )
+                except Exception:
+                    # Se fallisce il colore, mostra la tabella semplice senza crashare
+                    st.dataframe(medie_periodo, hide_index=True, use_container_width=True)
                     
             st.info(f"💡 In questo periodo sono state registrate {df_filtrato['Data'].nunique()} sessioni di allenamento.")
         else:
-            st.warning("Nessun dato trovato per il periodo selezionato.")
+            st.warning("⚠️ Nessun dato trovato per il periodo selezionato.")
     else:
-        st.info("Registra dei dati nella Dashboard per vedere le statistiche.")
+        st.info("ℹ️ Registra dei dati nella Dashboard per vedere le statistiche.")
