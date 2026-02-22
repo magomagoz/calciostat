@@ -215,12 +215,12 @@ if st.session_state['view'] == 'aggiungi':
                         nt        # 13. Note
                     ]
                     
-                    # Inserimento nel database
-                    st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
-                    salva_giocatori(st.session_state['players_db'])
-                    st.success(f"Calciatore {cog} salvato!")
-                    st.session_state['view'] = 'dashboard'
-                    st.rerun()
+                # Inserimento nel database
+                st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
+                salva_giocatori(st.session_state['players_db'])
+                st.success(f"Calciatore {cog} salvato!")
+                st.session_state['view'] = 'dashboard'
+                st.rerun()
         
 elif st.session_state['view'] == 'modifica':
     idx = st.session_state['editing_index']
