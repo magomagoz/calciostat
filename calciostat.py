@@ -269,7 +269,8 @@ if st.session_state['view'] == 'dashboard':
             hide_index=True
         )
         # Inserisci questo pezzo subito dopo st.dataframe(...) della Tabella Giocatori
-        nomi = df_p.apply(lambda x: f"{x['Cognome']} {x['Nome']} ({x['Squadra']})", axis=1).tolist()
+        # Usa players_db invece di df_p
+        nomi = st.session_state['players_db'].apply(lambda x: f"{x['Cognome']} {x['Nome']} ({x['Squadra']})", axis=1).tolist()
         mod = st.selectbox("Seleziona calciatore da modificare:", ["-- Seleziona --"] + nomi)
         if mod != "-- Seleziona --":
             if st.button("📝 Modifica Dati"):
@@ -322,52 +323,35 @@ if st.session_state['view'] == 'dashboard':
 
         st.divider()
 
-        # 3. TABELLA FATICA (GIOCATORI SULLE ORDINATE, DATE SULLE ASCISSE)
+        # --- 3. TABELLONE FATICA ---
         st.subheader("📅 Tabellone Presenze e Valutazioni")
         if not st.session_state['fatica_db'].empty:
             df_f = st.session_state['fatica_db'].copy()
-
-            # 1. Formattiamo la data nel formato dd/mm/YYYY
+        
+            # Formattazione data
             df_f['Data'] = pd.to_datetime(df_f['Data']).dt.strftime('%d/%m/%Y')
-
-            # 2. Creiamo la Pivot invertita: 
-            # Index = Giocatori (Ordinate), Columns = Date (Ascisse)
+        
+            # Creazione Pivot
             pivot_df = df_f.pivot_table(
                 index='Cognome', 
                 columns='Data', 
                 values='Fatica', 
                 aggfunc='first'
-            )
+            ).fillna("-")
+        
+            # Calcolo Media
+            def check_media(riga):
+                numeri = pd.to_numeric(riga, errors='coerce').dropna()
+                return numeri.mean() if not numeri.empty else 0
+        
+            pivot_df['MEDIA'] = pivot_df.apply(check_media, axis=1)
+            pivot_df = pivot_df.sort_values(by='MEDIA', ascending=False)
+        
+            # Visualizzazione sicura
+            st.dataframe(pivot_df, use_container_width=True)
+        else:
+            st.info("Nessun dato di fatica registrato. Inserisci una sessione sopra per vedere la tabella.")
 
-            # 3. Calcoliamo la media per ogni giocatore (riga)
-            def calcola_media_riga(riga):
-                numerici = pd.to_numeric(riga, errors='coerce').dropna()
-                return numerici.mean() if not numerici.empty else 0
-
-            pivot_df['MEDIA'] = pivot_df.apply(calcola_media_riga, axis=1)
-
-            # 4. Ordiniamo per Media decrescente e riempiamo i vuoti
-            pivot_df = pivot_df.sort_values(by='MEDIA', ascending=False).fillna("-")
-
-            # 5. Funzione colore aggiornata
-            def color_voti_safe(val):
-                if val == "ass" or val == "-" or val == "":
-                    return 'color: #777777;'
-                try:
-                    voto = float(val)
-                    if voto >= 7: return 'background-color: #228b22; color: white;' # Verde
-                    if voto >= 6: return 'background-color: #90ee90; color: black;' # Verde chiaro
-                    if voto >= 5: return 'background-color: #ffffe0; color: black;' # Giallo
-                    return 'background-color: #ffcccb; color: black;' # Rosso
-                except:
-                    return ''
-            
-            # Visualizzazione
-            st.dataframe(
-                pivot_df.style.applymap(color_voti_safe).format(precision=1), 
-                use_container_width=True
-            )
-            st.caption("Le date si aggiungono orizzontalmente verso destra. La colonna MEDIA mostra il rendimento totale.")
 
         if st.button("🗑️ Elimina Ultima Registrazione Fatica", use_container_width=True):
             if not st.session_state['fatica_db'].empty:
