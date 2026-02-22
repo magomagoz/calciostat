@@ -468,24 +468,21 @@ elif st.session_state['view'] == 'stats':
         df_filtrato = df_stats.loc[mask].copy()
         
             
-            # Visualizzazione Risultati
-            c_graf, c_tab = st.columns([2, 1])
+        # Visualizzazione Risultati
+        c_graf, c_tab = st.columns([2, 1])
             
-            with c_graf:
-                st.write(f"**Andamento dal {data_inizio} al {data_fine}**")
-                fig = px.line(df_filtrato.dropna(subset=['Voto_Num']), 
-                             x="Data", y="Voto_Num", color="Cognome", markers=True,
-                             labels={"Voto_Num": "Valutazione Fatica"})
-                st.plotly_chart(fig, use_container_width=True)
+        with c_graf:
+            st.write(f"**Andamento dal {data_inizio} al {data_fine}**")
+            fig = px.line(df_filtrato.dropna(subset=['Voto_Num']), x="Data", y="Voto_Num", color="Cognome", markers=True, labels={"Voto_Num": "Valutazione Fatica"})
+            st.plotly_chart(fig, use_container_width=True)
             
-            with c_tab:
-                st.write("**Classifica Medie**")
-                st.dataframe(medie_periodo.style.background_gradient(cmap='RdYlGn', subset=['Media Voto nel Periodo']), 
-                             hide_index=True, use_container_width=True)
+        with c_tab:
+            st.write("**Classifica Medie**")
+            st.dataframe(medie_periodo.style.background_gradient(cmap='RdYlGn', subset=['Media Voto nel Periodo']), hide_index=True, use_container_width=True)
                 
-            # Numero allenamenti fatti nel periodo
-            st.info(f"💡 In questo periodo sono state registrate {df_filtrato['Data'].nunique()} sessioni di allenamento.")
-        else:
-            st.warning("Nessun dato trovato per il periodo selezionato.")
+        # Numero allenamenti fatti nel periodo
+        st.info(f"💡 In questo periodo sono state registrate {df_filtrato['Data'].nunique()} sessioni di allenamento.")
     else:
+        st.warning("Nessun dato trovato per il periodo selezionato.")
+else:
         st.info("Registra dei dati nella Dashboard per vedere le statistiche.")
