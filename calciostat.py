@@ -311,10 +311,13 @@ if st.session_state['view'] == 'dashboard':
                 st.session_state['view'] = 'modifica'
                 st.rerun()
         
-        check = st.checkbox("Abilita cancellazione totale")
-        if check and st.button("🗑️ SVUOTA DB CALCIATORI"):
-            st.session_state['players_db'] = pd.DataFrame(columns=df_p.columns)
+        check = st.checkbox("🗑️ Abilita cancellazione totale")
+        if check and st.button("🔥🔥🔥 CANCELLA TUTTI I CALCIATORI"):
+            # Usiamo le colonne del database attuale invece di df_p
+            colonne = st.session_state['players_db'].columns
+            st.session_state['players_db'] = pd.DataFrame(columns=colonne)
             salva_giocatori(st.session_state['players_db'])
+            st.success("Database svuotato con successo!")
             st.rerun()
 
         st.divider()
