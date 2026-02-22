@@ -157,9 +157,12 @@ with c3:
 with c4:
     if st.button("📊 Statistiche", use_container_width=True): st.session_state['view'] = 'stats'; st.rerun()
 with c5:
-    if st.button("↩️ Torna all'inizio", use_container_width=True): 
+    if st.button("↩️ Carica File", use_container_width=True): 
+        # Resettiamo il database e il flag di setup per tornare alla schermata uploader
+        st.session_state['players_db'] = pd.DataFrame() 
+        st.session_state['setup_done'] = False
         st.session_state['view'] = 'dashboard'
-        st.rerun() 
+        st.rerun()
 with c6:
     if st.button("🚪 Esci", use_container_width=True): 
         st.session_state['logged_in'] = False  # Questo è il vero Logout
