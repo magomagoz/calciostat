@@ -137,7 +137,7 @@ c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
     if st.button("🏆 Campionato", use_container_width=True): st.session_state['view'] = 'campionato'; st.rerun()
 with c2:
-    if st.button("➕ Nuovo Calciatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
+    if st.button("➕ Calciatore", use_container_width=True): st.session_state['view'] = 'aggiungi'; st.rerun()
 with c3:
     if st.button("📋 Elenco", use_container_width=True): st.session_state['view'] = 'dashboard'; st.rerun()
 with c4:
