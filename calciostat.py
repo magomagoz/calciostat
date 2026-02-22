@@ -425,10 +425,14 @@ elif st.session_state['view'] == 'stats':
     # Usiamo il cognome già salvato nel log fatica invece di cercarlo per indice
         pass # Il cognome è già presente nel df_stats creato dopo
     
+    # --- All'interno di elif st.session_state['view'] == 'stats': ---
     if not st.session_state['fatica_db'].empty:
         df_stats = st.session_state['fatica_db'].copy()
-        df_stats['Data'] = pd.to_datetime(df_stats['Data']).dt.date
         
+        # Forza la conversione in data vera (rimuove i numeri strani dell'immagine)
+        df_stats['Data'] = pd.to_datetime(df_stats['Data'])
+        
+        # Filtro date (già presente nel tuo codice)
         # --- FILTRO DATE ---
         st.write("### 📅 Seleziona Periodo")
         col_d1, col_d2 = st.columns(2)
@@ -436,18 +440,33 @@ elif st.session_state['view'] == 'stats':
             data_inizio = st.date_input("Dalla data:", df_stats['Data'].min())
         with col_d2:
             data_fine = st.date_input("Alla data:", date.today())
+    
+        if not df_filtrato.empty:
+            df_filtrato['Voto_Num'] = pd.to_numeric(df_filtrato['Fatica'], errors='coerce')
+            medie_periodo = df_filtrato.dropna(subset=['Voto_Num']).groupby('Cognome')['Voto_Num'].mean().reset_index()
+            medie_periodo.columns = ['Cognome', 'Media Voto nel Periodo']
+
+            df_grafico = df_filtrato.dropna(subset=['Voto_Num']).sort_values('Data')
+    
+            # GRAFICO AGGIORNATO
+            fig = px.line(df_grafico, 
+                         x="Data", 
+                         y="Voto_Num", 
+                         color="Cognome", 
+                         markers=True,
+                         title="Andamento Valutazioni nel Tempo",
+                         labels={"Data": "Data Allenamento (gg/mm/aaaa)", "Voto_Num": "Valutazione"})
+            
+            # Forza il formato dd/mm/yyyy sull'asse X
+            fig.update_xaxes(dtick="D1", tickformat="%d/%m/%Y")
+            
+            st.plotly_chart(fig, use_container_width=True)
+    
         
         # Filtraggio del dataframe
         mask = (df_stats['Data'] >= data_inizio) & (df_stats['Data'] <= data_fine)
         df_filtrato = df_stats.loc[mask].copy()
         
-        if not df_filtrato.empty:
-            # Calcolo medie nel periodo selezionato
-            # All'interno di elif st.session_state['view'] == 'stats':
-            df_filtrato['Voto_Num'] = pd.to_numeric(df_filtrato['Fatica'], errors='coerce')
-            # Rimuovi le righe senza voto numerico prima di calcolare la classifica
-            medie_periodo = df_filtrato.dropna(subset=['Voto_Num']).groupby('Cognome')['Voto_Num'].mean().reset_index()
-            medie_periodo.columns = ['Cognome', 'Media Voto nel Periodo']
             
             # Visualizzazione Risultati
             c_graf, c_tab = st.columns([2, 1])
