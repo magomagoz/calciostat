@@ -45,12 +45,26 @@ def carica_dati_relazionali():
     return df_p, df_f
 
 def carica_giocatori():
+    # Definiamo esattamente le 13 colonne necessarie
+    colonne_corrette = ["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", 
+                        "Presenze", "Minutaggio", "Gol", "Fatica", "Gialli", 
+                        "Rossi", "Rating", "Note"]
+    
     if os.path.exists(DB_PLAYERS):
         df = pd.read_csv(DB_PLAYERS)
+        # Se mancano colonne nel CSV salvato, le aggiungiamo vuote
+        for col in colonne_corrette:
+            if col not in df.columns:
+                df[col] = 0 if col != "Note" else ""
+        
+        # Riordiniamo le colonne per sicurezza
+        df = df[colonne_corrette]
+        
         if 'Data di nascita' in df.columns:
             df['Data di nascita'] = pd.to_datetime(df['Data di nascita']).dt.date
         return df
-    return pd.DataFrame(columns=["Squadra", "Cognome", "Nome", "Ruolo", "Data di nascita", "Presenze", "Minutaggio", "Gol", "Gialli", "Rossi", "Rating", "Note"])
+    
+    return pd.DataFrame(columns=colonne_corrette)
 
 def carica_fatica():
     if os.path.exists(DB_FATICA):
@@ -215,13 +229,13 @@ if st.session_state['view'] == 'aggiungi':
                         nt        # 13. Note
                     ]
                     
-                # Inserimento nel database
-                st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
-                salva_giocatori(st.session_state['players_db'])
-                st.success(f"Calciatore {cog} salvato!")
-                st.session_state['view'] = 'dashboard'
-                st.rerun()
-        
+                    # Inserimento nel database
+                    st.session_state['players_db'].loc[len(st.session_state['players_db'])] = nuovo
+                    salva_giocatori(st.session_state['players_db'])
+                    st.success(f"Calciatore {cog} salvato!")
+                    st.session_state['view'] = 'dashboard'
+                    st.rerun()
+            
 elif st.session_state['view'] == 'modifica':
     idx = st.session_state['editing_index']
     gio = st.session_state['players_db'].iloc[idx]
