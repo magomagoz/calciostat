@@ -110,15 +110,15 @@ if 'camp_scelto' not in st.session_state: st.session_state['camp_scelto'] = list
 if 'editing_index' not in st.session_state: st.session_state['editing_index'] = None
 
 # --- LOGIN ---
-if not st.session_state['logged_in']:
-    st.title("🔐 Login")
-    u = st.text_input("User")
-    p = st.text_input("Pass", type="password")
-    if st.button("Entra"):
-        if u == "Marco" and p == "Scout2026":
-            st.session_state['logged_in'] = True
-            st.rerun()
-    st.stop()
+#if not st.session_state['logged_in']:
+    #st.title("🔐 Login")
+    #u = st.text_input("User")
+    #p = st.text_input("Pass", type="password")
+    #if st.button("Entra"):
+        #if u == "Marco" and p == "Scout2026":
+            #st.session_state['logged_in'] = True
+            #st.rerun()
+    #st.stop()
 
 # --- SCHERMATA INIZIALE CARICAMENTO (DOPO LOGIN) ---
 if st.session_state['players_db'].empty and not st.session_state.get('setup_done'):
